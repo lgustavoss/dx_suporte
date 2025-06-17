@@ -64,7 +64,7 @@ DELETE     /api/v1/controle-acesso/grupos/{id}/permissoes/{perm_id}/
 
 - **Backend:** Python 3.12 + Django 5.1 + DRF
 - **Autenticação:** JWT com djangorestframework-simplejwt
-- **Banco:** SQLite (desenvolvimento) / PostgreSQL (produção)
+- **Banco:** MySQL (desenvolvimento) / MySQL (produção)
 - **Filtros:** django-filter + filtros customizados
 - **Paginação:** Paginação customizada com metadados
 
@@ -102,6 +102,14 @@ pip install -r requirements.txt
 
 ### 4. Configurar banco de dados
 ```bash
+# Certifique-se de que o MySQL está rodando
+# Configure as credenciais no arquivo .env:
+# DB_NAME=dx_suporte
+# DB_USER=root
+# DB_PASSWORD=sua_senha
+# DB_HOST=localhost
+# DB_PORT=3306
+
 python manage.py makemigrations
 python manage.py migrate
 python manage.py createsuperuser
