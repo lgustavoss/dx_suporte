@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -22,6 +22,7 @@ from controle_acesso.serializers import GrupoSimplificadoSerializer
 from controle_acesso.permissions import RequirePermission, HasCustomPermission
 from core.filters import GlobalSearchFilter, UsuarioFilter
 from core.pagination import CustomPagination
+from .validators import ValidacaoCompleta  # ← IMPORT NOVO
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """Login customizado que marca usuário como online"""
@@ -77,27 +78,22 @@ def status_online_view(request):
 
 @RequirePermission('accounts_visualizar')
 class UsuarioViewSet(viewsets.ModelViewSet):
-    """ViewSet completo para gerenciar usuários com paginação e filtros"""
+    """ViewSet completo para gerenciar usuários com validações de segurança"""
     queryset = Usuario.objects.filter(is_active=True).order_by('username')
     pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, GlobalSearchFilter, filters.OrderingFilter]
     filterset_class = UsuarioFilter
     
-    # Campos de busca global (busca em qualquer um desses campos)
+    # Campos de busca global
     search_fields = [
-        'username',      # Busca no nome de usuário
-        'email',         # Busca no email
-        'first_name',    # Busca no primeiro nome
-        'last_name',     # Busca no sobrenome
-        'telefone',      # Busca no telefone
+        'username', 'email', 'first_name', 'last_name', 'telefone',
     ]
     
-    # Campos disponíveis para ordenação
     ordering_fields = [
         'username', 'email', 'first_name', 'last_name', 
         'date_joined', 'last_login', 'is_online'
     ]
-    ordering = ['username']  # Ordenação padrão
+    ordering = ['username']
     
     def get_serializer_class(self):
         """Escolher serializer baseado na action"""
@@ -130,12 +126,36 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         """Query customizada para incluir usuários inativos se necessário"""
         queryset = Usuario.objects.all().order_by('username')
         
-        # Filtrar usuários inativos por padrão, mas permitir ver todos se solicitado
         include_inactive = self.request.query_params.get('include_inactive', 'false')
         if include_inactive.lower() != 'true':
             queryset = queryset.filter(is_active=True)
         
         return queryset
+    
+    def destroy(self, request, *args, **kwargs):
+        """Exclusão com validações de segurança"""
+        instance = self.get_object()
+        
+        # ✅ APLICAR VALIDAÇÕES DE EXCLUSÃO
+        try:
+            ValidacaoCompleta.validar_exclusao_usuario(request.user, instance)
+        except serializers.ValidationError as e:
+            return Response(
+                e.detail, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Se passou nas validações, executar exclusão
+        self.perform_destroy(instance)
+        return Response(
+            {"detail": "✅ Usuário excluído com sucesso."}, 
+            status=status.HTTP_204_NO_CONTENT
+        )
+    
+    def perform_destroy(self, instance):
+        """Soft delete ao invés de exclusão definitiva"""
+        instance.is_active = False
+        instance.save()
 
 @RequirePermission('accounts_visualizar')
 class UsuarioGruposView(APIView):
