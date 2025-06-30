@@ -16,7 +16,8 @@ class PermissaoCustomizadaSerializer(serializers.ModelSerializer):
         model = PermissaoCustomizada
         fields = [
             'id', 'modulo', 'modulo_display', 'acao', 'acao_display',
-            'nome', 'descricao', 'auto_descoberta', 'ativo', 'created_at'
+            'nome', 'descricao', 'auto_descoberta', 'ativo', 
+            'created_at', 'updated_at'
         ]
     
     def get_modulo_display(self, obj):
@@ -25,57 +26,92 @@ class PermissaoCustomizadaSerializer(serializers.ModelSerializer):
     def get_acao_display(self, obj):
         return obj.acao.title()
 
+class GroupSerializer(serializers.ModelSerializer):
+    """Serializer para Django Group"""
+    class Meta:
+        model = Group
+        fields = ['id', 'name']
+
 class GrupoCustomizadoSerializer(serializers.ModelSerializer):
-    nome = serializers.CharField(source='group.name')
-    total_usuarios = serializers.ReadOnlyField()
-    total_permissoes = serializers.ReadOnlyField()
-    usuarios = serializers.SerializerMethodField()
-    permissoes = serializers.SerializerMethodField()
+    """Serializer para grupos customizados"""
+    
+    # ✅ USAR DOIS CAMPOS DIFERENTES: um para leitura, outro para escrita
+    group = GroupSerializer(read_only=True)  # Para saída
+    group_data = GroupSerializer(write_only=True, required=False)  # Para entrada
     
     class Meta:
         model = GrupoCustomizado
-        fields = [
-            'id', 'nome', 'descricao', 'ativo', 
-            'total_usuarios', 'total_permissoes',
-            'usuarios', 'permissoes',
-            'created_at', 'updated_at'
-        ]
-    
-    def get_usuarios(self, obj):
-        usuarios = obj.group.user_set.all()
-        return [{'id': u.id, 'username': u.username, 'email': u.email} for u in usuarios]
-    
-    def get_permissoes(self, obj):
-        permissoes = obj.group.permissions.all()
-        return [{'id': p.id, 'name': p.name, 'codename': p.codename} for p in permissoes]
+        fields = ['id', 'group', 'group_data', 'descricao', 'ativo', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
     
     def create(self, validated_data):
-        group_data = validated_data.pop('group')
-        nome = group_data['name']
+        """Criar grupo customizado com grupo Django aninhado"""
+        # ✅ EXTRAIR dados do grupo aninhado
+        group_data = validated_data.pop('group_data', None)
         
-        # Criar o Group do Django
-        group = Group.objects.create(name=nome)
+        if not group_data:
+            raise serializers.ValidationError({
+                'group_data': 'Este campo é obrigatório para criação.'
+            })
         
-        # Criar o GrupoCustomizado
-        grupo_customizado = GrupoCustomizado.objects.create(
-            group=group,
+        group_name = group_data['name']
+        
+        # ✅ VERIFICAR se nome já existe
+        if Group.objects.filter(name=group_name).exists():
+            existing_group = Group.objects.get(name=group_name)
+            # Verificar se já tem GrupoCustomizado
+            if hasattr(existing_group, 'custom_group'):
+                raise serializers.ValidationError({
+                    'group_data': {'name': ['Já existe um grupo customizado para este nome.']}
+                })
+            # Se não tem, usar o grupo existente
+            group_django = existing_group
+        else:
+            # Criar novo grupo
+            group_django = Group.objects.create(name=group_name)
+        
+        # ✅ CRIAR grupo customizado
+        grupo_custom = GrupoCustomizado.objects.create(
+            group=group_django,
             **validated_data
         )
         
-        return grupo_customizado
+        return grupo_custom
     
     def update(self, instance, validated_data):
-        group_data = validated_data.pop('group', None)
+        """Atualizar grupo customizado"""
+        # ✅ TRATAR atualização do grupo aninhado
+        group_data = validated_data.pop('group_data', None)
         
         if group_data:
-            instance.group.name = group_data.get('name', instance.group.name)
-            instance.group.save()
+            group_name = group_data.get('name')
+            if group_name and group_name != instance.group.name:
+                # Verificar se novo nome já existe
+                if Group.objects.filter(name=group_name).exclude(id=instance.group.id).exists():
+                    raise serializers.ValidationError({
+                        'group_data': {'name': ['Já existe um grupo com este nome.']}
+                    })
+                
+                instance.group.name = group_name
+                instance.group.save()
         
+        # ✅ ATUALIZAR outros campos
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
         instance.save()
         return instance
+    
+    def to_representation(self, instance):
+        """Customizar representação de saída"""
+        data = super().to_representation(instance)
+        # ✅ COMPATIBILIDADE: Também incluir group.id para testes antigos
+        if 'group' in data and isinstance(data['group'], dict):
+            data['group_id'] = data['group']['id']
+        
+        # Remover group_data da saída (só é usado na entrada)
+        data.pop('group_data', None)
+        return data
 
 class UsuarioComGruposSerializer(serializers.ModelSerializer):
     """Serializer para usuários com informações de grupos"""

@@ -190,6 +190,8 @@ CONTROLE_ACESSO = {
     'SKIP_APPS': [
         'endpoints',  # App de roteamento, não tem funcionalidade própria
         'core',  # App de utilitários, não tem funcionalidades específicas
+        'django_filters',  # Django Filter, não deve ser modificado
+        'rest_framework', # Django REST Framework, não deve ser modificado
         'django.contrib.admin',  # Admin do Django, não deve ser modificado
         # 'outro_app_meta',  # Exemplo de como adicionar outros
     ],
@@ -204,5 +206,18 @@ CONTROLE_ACESSO = {
     ],
     
     # Sincronizar permissões automaticamente após migrations (produção = False)
-    'AUTO_SYNC_AFTER_MIGRATE': True,
+    'AUTO_SYNC_AFTER_MIGRATE': config('AUTO_SYNC_PERMISSIONS', default=True, cast=bool),
+
+    # Cache settings
+    'CACHE_TIMEOUT': 300,  # 5 minutos
+    'USE_CACHE': True,
 }
+
+# Configuração para debug de permissões em testes
+DEBUG_PERMISSIONS = config('DEBUG_PERMISSIONS', default=False, cast=bool)
+
+# Em testes, ativar debug E desativar auto-sync
+if 'test' in sys.argv:
+    DEBUG_PERMISSIONS = True
+    # CRÍTICO: Desativar auto-sync em testes para evitar conflitos
+    CONTROLE_ACESSO['AUTO_SYNC_AFTER_MIGRATE'] = False

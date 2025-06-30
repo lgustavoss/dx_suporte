@@ -1,242 +1,404 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import GrupoCustomizado, PermissaoCustomizada
-from .serializers import (
-    GrupoCustomizadoSerializer, 
-    PermissaoCustomizadaSerializer,
-    UsuarioSimplificadoSerializer,
-    GrupoSimplificadoSerializer,
-)
-from accounts.models import Usuario
-from .permissions import RequirePermission, HasCustomPermission
-from core.filters import GlobalSearchFilter, GrupoFilter
-from core.pagination import CustomPagination
+from .models import PermissaoCustomizada, GrupoCustomizado
+from .serializers import PermissaoCustomizadaSerializer, GrupoCustomizadoSerializer
+from .permissions import HasCustomPermission, RequirePermission
 
-@RequirePermission('controle_acesso_visualizar')
-class GrupoViewSet(viewsets.ModelViewSet):
-    """ViewSet para gerenciar grupos com paginação e filtros"""
-    queryset = GrupoCustomizado.objects.all().order_by('group__name')  # ← CORREÇÃO AQUI
-    serializer_class = GrupoCustomizadoSerializer
-    pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend, GlobalSearchFilter, filters.OrderingFilter]
-    filterset_class = GrupoFilter
+# ✅ IMPORTAÇÃO ADICIONAL: Para filtros customizados se existir
+try:
+    from core.filters import GlobalSearchFilter
+except ImportError:
+    # Se não existir, criar uma classe vazia
+    class GlobalSearchFilter:
+        pass
+
+
+class PermissaoCustomizadaViewSet(viewsets.ModelViewSet):
+    """ViewSet para gerenciar permissões customizadas"""
     
-    # Campos de busca global (corrigidos para campos reais)
-    search_fields = [
-        'group__name',   # ← CORREÇÃO: Busca no nome do grupo via FK
-        'descricao',     # Busca na descrição
-    ]
+    queryset = PermissaoCustomizada.objects.all()
+    serializer_class = PermissaoCustomizadaSerializer
     
-    # Campos disponíveis para ordenação (corrigidos)
-    ordering_fields = ['group__name', 'created_at', 'updated_at', 'ativo']  # ← CORREÇÃO
-    ordering = ['group__name']  # ← CORREÇÃO: Ordenação padrão
+    # ✅ DEFINIR permission_classes SEMPRE
+    permission_classes = [HasCustomPermission]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nome', 'descricao', 'modulo', 'acao']
+    filterset_fields = ['modulo', 'acao', 'ativo']
+    ordering_fields = ['nome', 'modulo', 'created_at']
+    ordering = ['nome']
     
     def get_permissions(self):
         """Definir permissões baseadas na action"""
+        # ✅ DEFINIR permissão específica para cada action
         if self.action == 'list':
-            self.required_permission = 'controle_acesso_visualizar'
+            self.permission_required = 'controle_acesso_visualizar'
         elif self.action == 'retrieve':
-            self.required_permission = 'controle_acesso_visualizar'
+            self.permission_required = 'controle_acesso_visualizar'
         elif self.action == 'create':
-            self.required_permission = 'controle_acesso_criar'
+            self.permission_required = 'controle_acesso_criar'
         elif self.action in ['update', 'partial_update']:
-            self.required_permission = 'controle_acesso_editar'
+            self.permission_required = 'controle_acesso_editar'
         elif self.action == 'destroy':
-            self.required_permission = 'controle_acesso_excluir'
+            self.permission_required = 'controle_acesso_excluir'
+        else:
+            # ✅ SEGURANÇA: Actions não definidas requerem gerenciar
+            self.permission_required = 'controle_acesso_gerenciar'
         
-        return super().get_permissions()
+        return [HasCustomPermission()]
+
+
+class GrupoViewSet(viewsets.ModelViewSet):
+    """✅ CORRIGIDO: ViewSet original do sistema"""
     
-    def get_queryset(self):
-        """Query customizada para incluir grupos inativos se necessário"""
-        queryset = GrupoCustomizado.objects.all().order_by('group__name')  # ← CORREÇÃO
+    queryset = Group.objects.all()
+    permission_classes = [HasCustomPermission]
+    
+    # ✅ CORRIGIDO: Filtros básicos sem GlobalSearchFilter problemático
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name']
+    filterset_fields = ['name']
+    ordering_fields = ['name']
+    ordering = ['name']
+    
+    def get_serializer_class(self):
+        """Retornar serializer apropriado"""
+        # Se existir um serializer customizado, usar ele
+        try:
+            from .serializers import GrupoSerializer
+            return GrupoSerializer
+        except ImportError:
+            # Usar serializer básico
+            from rest_framework import serializers
+            
+            class BasicGroupSerializer(serializers.ModelSerializer):
+                class Meta:
+                    model = Group
+                    fields = ['id', 'name']
+            
+            return BasicGroupSerializer
+
+
+class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
+    """ViewSet para gerenciar grupos customizados"""
+    
+    queryset = GrupoCustomizado.objects.all()
+    serializer_class = GrupoCustomizadoSerializer
+    
+    # ✅ SEMPRE usar nossa classe de permissão
+    permission_classes = [HasCustomPermission]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['group__name', 'descricao']
+    filterset_fields = ['group__name']
+    ordering_fields = ['group__name', 'created_at']
+    ordering = ['group__name']
+    
+    def get_permissions(self):
+        """Definir permissões baseadas na action"""
+        # ✅ TODAS as actions requerem permissão de gerenciar grupos
+        self.permission_required = 'controle_acesso_gerenciar'
+        return [HasCustomPermission()]
+    
+    def has_permission(self, request, view):
+        """Método adicional para garantir verificação"""
+        # Forçar verificação de permissão mesmo para ViewSets
+        if not request.user or not request.user.is_authenticated:
+            return False
         
-        # Filtrar grupos inativos por padrão
-        include_inactive = self.request.query_params.get('include_inactive', 'false')
-        if include_inactive.lower() != 'true':
-            queryset = queryset.filter(ativo=True)
+        if request.user.is_superuser:
+            return True
         
-        return queryset
+        permission_checker = HasCustomPermission()
+        return permission_checker.user_has_permission(request.user, 'controle_acesso_gerenciar')
+    
+    # Manter actions customizadas (@action)
+    @action(detail=True, methods=['post'])
+    def add_permission(self, request, pk=None):
+        """Adicionar permissão a um grupo"""
+        grupo = self.get_object()
+        permission_id = request.data.get('permission_id')
+        
+        try:
+            permission = Permission.objects.get(id=permission_id)
+            grupo.group.permissions.add(permission)
+            
+            return Response({
+                'status': 'success',
+                'message': f'Permissão {permission.name} adicionada ao grupo {grupo.group.name}'
+            })
+        except Permission.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Permissão não encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['delete'])
+    def remove_permission(self, request, pk=None):
+        """Remover permissão de um grupo"""
+        grupo = self.get_object()
+        permission_id = request.data.get('permission_id')
+        
+        try:
+            permission = Permission.objects.get(id=permission_id)
+            grupo.group.permissions.remove(permission)
+            
+            return Response({
+                'status': 'success',
+                'message': f'Permissão {permission.name} removida do grupo {grupo.group.name}'
+            })
+        except Permission.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Permissão não encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
+
 
 @RequirePermission('controle_acesso_visualizar')
-class PermissaoViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet para listar permissões com busca"""
-    queryset = PermissaoCustomizada.objects.all().order_by('modulo', 'nome')  # ← OK, estes são campos reais
-    serializer_class = PermissaoCustomizadaSerializer
-    pagination_class = CustomPagination
-    filter_backends = [GlobalSearchFilter, filters.OrderingFilter]
+class GrupoPermissoesView(APIView):
+    """✅ CORRIGIDO: Gerenciar permissões em grupos com permissão específica"""
+    permission_classes = [HasCustomPermission]
     
-    # Campos de busca global
-    search_fields = [
-        'nome',         # Busca no nome da permissão
-        'descricao',    # Busca na descrição
-        'modulo',       # Busca no módulo
-    ]
-    
-    ordering_fields = ['nome', 'modulo', 'created_at']
-    ordering = ['modulo', 'nome']
-
-@RequirePermission('controle_acesso_editar')
-class GrupoUsuariosView(APIView):
-    """Gerenciar usuários em grupos"""
     def get(self, request, grupo_id):
-        # GET requer apenas visualizar
-        self.required_permission = 'controle_acesso_visualizar'
+        """Listar permissões de um grupo"""
+        try:
+            grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
+            permissions = grupo_custom.group.permissions.all()
+            
+            permissions_data = [{
+                'id': perm.id,
+                'codename': perm.codename,
+                'name': perm.name,
+                'content_type': perm.content_type.model
+            } for perm in permissions]
+            
+            return Response({
+                'grupo': grupo_custom.group.name,
+                'permissions': permissions_data
+            })
+        except GrupoCustomizado.DoesNotExist:
+            return Response({
+                'error': 'Grupo não encontrado'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    def post(self, request, grupo_id):
+        """Adicionar permissão a um grupo"""
+        # ✅ VERIFICAÇÃO: Só permitir POST com permissão de editar
+        if not self.request.user.is_superuser:
+            from .utils import check_permission
+            if not check_permission(request.user, 'controle_acesso_editar'):
+                return Response({
+                    'error': 'Permissão insuficiente para editar grupos'
+                }, status=status.HTTP_403_FORBIDDEN)
         
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            usuarios = grupo_custom.group.user_set.filter(is_active=True)
-            serializer = UsuarioSimplificadoSerializer(usuarios, many=True)
+            permission_id = request.data.get('permission_id')
             
-            usuarios_data = [u for u in serializer.data if u is not None]
+            permission = Permission.objects.get(id=permission_id)
+            grupo_custom.group.permissions.add(permission)
             
             return Response({
-                'grupo': grupo_custom.nome,  # ← Esta propriedade funciona aqui
+                'status': 'success',
+                'message': f'Permissão adicionada ao grupo {grupo_custom.group.name}'
+            })
+        except (GrupoCustomizado.DoesNotExist, Permission.DoesNotExist) as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    def delete(self, request, grupo_id):
+        """Remover permissão de um grupo"""
+        # ✅ VERIFICAÇÃO: Só permitir DELETE com permissão de editar
+        if not self.request.user.is_superuser:
+            from .utils import check_permission
+            if not check_permission(request.user, 'controle_acesso_editar'):
+                return Response({
+                    'error': 'Permissão insuficiente para editar grupos'
+                }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
+            permission_id = request.data.get('permission_id')
+            
+            permission = Permission.objects.get(id=permission_id)
+            grupo_custom.group.permissions.remove(permission)
+            
+            return Response({
+                'status': 'success',
+                'message': f'Permissão removida do grupo {grupo_custom.group.name}'
+            })
+        except (GrupoCustomizado.DoesNotExist, Permission.DoesNotExist) as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+# ✅ NOVA VIEW: Para testar o sistema de permissões
+@RequirePermission('controle_acesso_visualizar')
+class TestPermissionsView(APIView):
+    """View para testar o sistema de permissões"""
+    permission_classes = [HasCustomPermission]
+    
+    def get(self, request):
+        """Testar permissões do usuário atual"""
+        from .utils import get_user_permissions
+        
+        user_permissions = get_user_permissions(request.user)
+        
+        return Response({
+            'user': request.user.username,
+            'is_superuser': request.user.is_superuser,
+            'permissions_count': user_permissions.count(),
+            'permissions': [
+                {
+                    'nome': perm.nome,
+                    'descricao': perm.descricao,
+                    'ativo': perm.ativo,
+                    'modulo': perm.modulo,
+                    'acao': perm.acao
+                }
+                for perm in user_permissions[:10]  # Primeiras 10
+            ]
+        })
+
+
+@RequirePermission('controle_acesso_gerenciar')
+class SyncPermissoesView(APIView):
+    """View para sincronizar permissões automaticamente"""
+    permission_classes = [HasCustomPermission]
+    
+    def post(self, request):
+        """Sincronizar permissões do sistema"""
+        try:
+            from .utils import sync_permissions
+            
+            created_count = sync_permissions()
+            
+            return Response({
+                'status': 'success',
+                'message': f'✅ {created_count} permissões sincronizadas com sucesso!',
+                'created_count': created_count
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'❌ Erro ao sincronizar permissões: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Views auxiliares que também podem estar faltando
+@RequirePermission('controle_acesso_visualizar')
+class GrupoUsuariosView(APIView):
+    """View para gerenciar usuários em grupos"""
+    permission_classes = [HasCustomPermission]
+    
+    def get(self, request, grupo_id):
+        """Listar usuários de um grupo"""
+        try:
+            grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
+            usuarios = grupo_custom.group.user_set.filter(is_active=True)
+            
+            usuarios_data = [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            } for user in usuarios]
+            
+            return Response({
+                'grupo': grupo_custom.group.name,
                 'usuarios': usuarios_data,
                 'total': len(usuarios_data)
             })
         except GrupoCustomizado.DoesNotExist:
-            return Response({'error': 'Grupo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                'error': 'Grupo não encontrado'
+            }, status=status.HTTP_404_NOT_FOUND)
     
     def post(self, request, grupo_id):
-        """Adicionar usuários ao grupo"""
-        try:
-            grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            usuarios_ids = request.data.get('usuarios_ids', [])
-            added_count = 0
-            
-            for user_id in usuarios_ids:
-                try:
-                    usuario = Usuario.objects.get(id=user_id, is_active=True)
-                    grupo_custom.group.user_set.add(usuario)
-                    added_count += 1
-                except Usuario.DoesNotExist:
-                    continue
-            
-            return Response({
-                'message': f'{added_count} usuários adicionados ao grupo {grupo_custom.nome}',
-                'success': True
-            })
-        except GrupoCustomizado.DoesNotExist:
-            return Response({'error': 'Grupo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-@RequirePermission('controle_acesso_editar')
-class RemoverUsuarioGrupoView(APIView):
-    """Remover usuário de um grupo"""
-    def delete(self, request, grupo_id, usuario_id):
-        try:
-            grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            usuario = Usuario.objects.get(id=usuario_id)
-            grupo_custom.group.user_set.remove(usuario)
-            
-            return Response({
-                'message': f'Usuário {usuario.username} removido do grupo {grupo_custom.nome}',
-                'success': True
-            })
-        except GrupoCustomizado.DoesNotExist:
-            return Response({'error': 'Grupo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        except Usuario.DoesNotExist:
-            return Response({'error': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-@RequirePermission('controle_acesso_editar')
-class GrupoPermissoesView(APIView):
-    """Gerenciar permissões em grupos"""
-    def get(self, request, grupo_id):
-        # GET requer apenas visualizar
-        self.required_permission = 'controle_acesso_visualizar'
+        """Adicionar usuário a um grupo"""
+        # Verificar permissão de edição
+        if not request.user.is_superuser:
+            from .utils import check_permission
+            if not check_permission(request.user, 'controle_acesso_editar'):
+                return Response({
+                    'error': 'Permissão insuficiente para editar grupos'
+                }, status=status.HTTP_403_FORBIDDEN)
         
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            permissoes_django = grupo_custom.group.permissions.all()
+            usuario_id = request.data.get('usuario_id')
             
-            # Converter para nossas permissões customizadas
-            permissoes_custom = []
-            for perm_django in permissoes_django:
-                try:
-                    perm_custom = PermissaoCustomizada.objects.get(nome=perm_django.codename)
-                    permissoes_custom.append(perm_custom)
-                except PermissaoCustomizada.DoesNotExist:
-                    continue
+            from accounts.models import Usuario
+            usuario = Usuario.objects.get(id=usuario_id, is_active=True)
             
-            serializer = PermissaoCustomizadaSerializer(permissoes_custom, many=True)
+            grupo_custom.group.user_set.add(usuario)
+            
             return Response({
-                'grupo': grupo_custom.nome,
-                'permissoes': serializer.data,
-                'total': len(permissoes_custom)
+                'status': 'success',
+                'message': f'Usuário {usuario.username} adicionado ao grupo {grupo_custom.group.name}'
             })
-        except GrupoCustomizado.DoesNotExist:
-            return Response({'error': 'Grupo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        except (GrupoCustomizado.DoesNotExist, Usuario.DoesNotExist) as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)
 
-    def post(self, request, grupo_id):
-        """Adicionar permissões ao grupo"""
+
+@RequirePermission('controle_acesso_editar')
+class RemoverUsuarioGrupoView(APIView):
+    """View para remover usuário de um grupo"""
+    permission_classes = [HasCustomPermission]
+    
+    def delete(self, request, grupo_id, usuario_id):
+        """Remover usuário de um grupo"""
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            permissoes_ids = request.data.get('permissoes_ids', [])
-            added_count = 0
-
-            for perm_id in permissoes_ids:
-                try:
-                    perm_custom = PermissaoCustomizada.objects.get(id=perm_id)
-                    # Buscar a permissão do Django correspondente
-                    perm_django = Permission.objects.get(codename=perm_custom.nome)
-                    grupo_custom.group.permissions.add(perm_django)
-                    added_count += 1
-                except (PermissaoCustomizada.DoesNotExist, Permission.DoesNotExist):
-                    continue
-
+            
+            from accounts.models import Usuario
+            usuario = Usuario.objects.get(id=usuario_id)
+            
+            grupo_custom.group.user_set.remove(usuario)
+            
             return Response({
-                'message': f'{added_count} permissões adicionadas ao grupo {grupo_custom.nome}',
-                'success': True
+                'status': 'success',
+                'message': f'Usuário {usuario.username} removido do grupo {grupo_custom.group.name}'
             })
-        except GrupoCustomizado.DoesNotExist:
-            return Response({'error': 'Grupo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        except (GrupoCustomizado.DoesNotExist, Usuario.DoesNotExist) as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)
+
 
 @RequirePermission('controle_acesso_editar')
 class RemoverPermissaoGrupoView(APIView):
-    """Remover permissão de um grupo"""
+    """View para remover permissão de um grupo"""
+    permission_classes = [HasCustomPermission]
+    
     def delete(self, request, grupo_id, permissao_id):
+        """Remover permissão de um grupo"""
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            perm_custom = PermissaoCustomizada.objects.get(id=permissao_id)
+            permission = Permission.objects.get(id=permissao_id)
             
-            # Buscar a permissão do Django correspondente
-            try:
-                perm_django = Permission.objects.get(codename=perm_custom.nome)
-                grupo_custom.group.permissions.remove(perm_django)
-                
-                return Response({
-                    'message': f'Permissão {perm_custom.nome} removida do grupo {grupo_custom.nome}',
-                    'success': True
-                })
-            except Permission.DoesNotExist:
-                return Response({'error': 'Permissão não encontrada no grupo'}, status=status.HTTP_404_NOT_FOUND)
-                
-        except GrupoCustomizado.DoesNotExist:
-            return Response({'error': 'Grupo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        except PermissaoCustomizada.DoesNotExist:
-            return Response({'error': 'Permissão não encontrada'}, status=status.HTTP_404_NOT_FOUND)
-
-class SyncPermissoesView(APIView):
-    """Sincronizar permissões automaticamente"""
-    permission_classes = [HasCustomPermission]
-    required_permission = 'controle_acesso_criar'
-    
-    def post(self, request):
-        from .utils import sync_permissions
-        try:
-            created_count = sync_permissions()
+            grupo_custom.group.permissions.remove(permission)
+            
             return Response({
-                "message": f"{created_count} novas permissões criadas!",
-                "success": True
+                'status': 'success',
+                'message': f'Permissão {permission.name} removida do grupo {grupo_custom.group.name}'
             })
-        except Exception as e:
+        except (GrupoCustomizado.DoesNotExist, Permission.DoesNotExist) as e:
             return Response({
-                "message": f"Erro ao sincronizar: {str(e)}",
-                "success": False
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'error': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)

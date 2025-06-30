@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import Group, Permission
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -46,12 +48,18 @@ class PermissaoCustomizada(models.Model):
     auto_descoberta = models.BooleanField(default=True)
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)  # ✅ ADICIONAR
     
     class Meta:
         db_table = 'sis_permissoes'
         verbose_name = 'Permissão Customizada'
         verbose_name_plural = 'Permissões Customizadas'
         unique_together = ['modulo', 'acao']
+        indexes = [
+            models.Index(fields=['modulo', 'acao']),
+            models.Index(fields=['nome']),
+            models.Index(fields=['ativo']),
+        ]
     
     def __str__(self):
         return f"{str(self.modulo).replace('_', ' ').title()} - {str(self.acao).title()}"
@@ -60,3 +68,18 @@ class PermissaoCustomizada(models.Model):
         if not self.nome:
             self.nome = f"{self.modulo}_{self.acao}"
         super().save(*args, **kwargs)
+    
+    @property
+    def django_permission(self):
+        """Obter permissão Django correspondente"""
+        try:
+            return Permission.objects.get(codename=self.nome)
+        except Permission.DoesNotExist:
+            return None
+
+# Signals para invalidar cache
+@receiver([post_save, post_delete], sender=PermissaoCustomizada)
+def invalidate_permissions_cache(sender, **kwargs):
+    """Invalidar cache quando permissões mudarem"""
+    from .utils import invalidate_app_permissions_cache
+    invalidate_app_permissions_cache()

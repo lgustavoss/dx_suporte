@@ -1,9 +1,9 @@
-from django.urls import path, include  # ← Adicionado 'include'
+from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     CustomTokenObtainPairView, 
     logout_view, 
-    status_online_view,
+    status_online, 
     UsuarioViewSet,
     UsuarioGruposView,
     minhas_permissoes_view 
@@ -21,7 +21,7 @@ urlpatterns = [
     path('logout/', logout_view, name='logout'),
     
     # Status online/offline
-    path('status-online/', status_online_view, name='status_online'),
+    path('status-online/', status_online, name='status_online'), 
     
     # CRUD usuários
     path('', include(router.urls)),

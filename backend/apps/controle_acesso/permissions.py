@@ -1,91 +1,133 @@
-from rest_framework import permissions
+from rest_framework.permissions import BasePermission
 from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
+from django.conf import settings  # ✅ ADICIONAR IMPORT
 from .models import PermissaoCustomizada
 
-class HasCustomPermission(permissions.BasePermission):
+
+class HasCustomPermission(BasePermission):
     """
-    Permissão customizada baseada no sistema de controle de acesso
+    Classe para verificação de permissões customizadas
     """
+    
     def has_permission(self, request, view):
-        # Usuários não autenticados não têm permissão
+        # ✅ CRÍTICO: Verificar autenticação primeiro
         if not request.user or not request.user.is_authenticated:
             return False
         
-        # Superusuários sempre têm permissão
+        # ✅ CRÍTICO: Superuser sempre tem acesso
         if request.user.is_superuser:
             return True
         
-        # Verificar se a view tem permissão customizada definida
-        required_permission = getattr(view, 'required_permission', None)
-        if not required_permission:
-            return True  # Se não tem permissão definida, permite acesso
+        # ✅ OBTER PERMISSÃO REQUERIDA DA VIEW
+        permission_required = getattr(view, 'permission_required', None)
         
-        # Verificar se o usuário tem a permissão necessária
-        return self.user_has_permission(request.user, required_permission)
+        # ✅ CASOS ESPECIAIS: Views que não precisam de permissão específica
+        special_views = [
+            'status-online',  # ← Endpoint de status
+            'minhas-permissoes'  # ← Endpoint de permissões do usuário
+        ]
+        
+        # Verificar se é uma view especial pelo nome da ação ou URL
+        view_name = getattr(view, 'action', None) or getattr(view, 'basename', '')
+        if any(special in view_name.lower() for special in special_views):
+            return True  # ← Permitir acesso apenas com autenticação
+        
+        # ✅ MUDANÇA: Se não há permissão definida, NEGAR acesso (mais seguro)
+        if not permission_required:
+            return False
+        
+        # ✅ VERIFICAR PERMISSÃO
+        return self.user_has_permission(request.user, permission_required)
     
     def user_has_permission(self, user, permission_name):
         """
-        Verifica se o usuário tem uma permissão específica
+        ✅ VERIFICAR se usuário tem permissão específica
         """
+        # Superuser bypass
+        if user.is_superuser:
+            return True
+        
         try:
-            # Buscar permissão customizada
-            perm_custom = PermissaoCustomizada.objects.get(nome=permission_name, ativo=True)
+            # ✅ VERIFICAR se existe permissão customizada ATIVA
+            perm_custom = PermissaoCustomizada.objects.get(
+                nome=permission_name, 
+                ativo=True
+            )
             
-            # Buscar permissão do Django correspondente
-            perm_django = Permission.objects.get(codename=perm_custom.nome)
-            
-            # Verificar se o usuário tem a permissão (diretamente ou via grupos)
-            return user.has_perm(f"auth.{perm_django.codename}")
-            
-        except (PermissaoCustomizada.DoesNotExist, Permission.DoesNotExist):
+            # ✅ CORRIGIR: Filtrar permissões Django por app correto
+            try:
+                # Determinar app_label baseado no módulo da permissão customizada
+                app_label = perm_custom.modulo
+                
+                # ✅ BUSCAR permissão Django específica do app
+                perm_django = Permission.objects.filter(
+                    codename=permission_name,
+                    content_type__app_label=app_label
+                ).first()  # ← Usar .first() ao invés de .get()
+                
+                if not perm_django:
+                    # Se não existe permissão Django, NEGAR
+                    return False
+                
+                # ✅ VERIFICAR permissão real do usuário
+                full_permission = f"{app_label}.{permission_name}"
+                has_perm = user.has_perm(full_permission)
+                
+                # ✅ DEBUG CONDICIONAL (removido em produção)
+                if getattr(settings, 'DEBUG_PERMISSIONS', False):
+                    print(f"=== DEBUG PERMISSION ===")
+                    print(f"User: {user.username}")
+                    print(f"Permission: {permission_name}")
+                    print(f"App label: {app_label}")
+                    print(f"Full permission: {full_permission}")
+                    print(f"User permissions: {list(user.get_all_permissions())}")
+                    print(f"Has permission: {has_perm}")
+                    print(f"=== END DEBUG ===")
+                
+                return has_perm
+                
+            except Exception as e:
+                # ✅ Log do erro para debug (sem settings)
+                print(f"Erro ao verificar permissão {permission_name}: {e}")
+                return False
+                
+        except PermissaoCustomizada.DoesNotExist:
+            # ✅ Se não existe permissão customizada, NEGAR
             return False
+
+
+def check_permission(user, permission_name):
+    """
+    ✅ CORRIGIDO: Função standalone para verificar permissões
+    Usar a mesma lógica da classe principal para consistência
+    """
+    permission_checker = HasCustomPermission()
+    return permission_checker.user_has_permission(user, permission_name)
+
 
 class RequirePermission:
     """
-    Decorator para definir permissões necessárias em views
+    ✅ CORRIGIDO: Decorator para aplicar permissões em views
     """
     def __init__(self, permission_name):
         self.permission_name = permission_name
     
     def __call__(self, view_class):
-        # Adicionar permissão necessária à view
-        view_class.required_permission = self.permission_name
+        # ✅ CRÍTICO: Aplicar permissão a TODOS os métodos da classe
+        view_class.permission_required = self.permission_name
         
-        # Adicionar nossa permissão customizada às classes de permissão
-        if hasattr(view_class, 'permission_classes'):
-            if HasCustomPermission not in view_class.permission_classes:
-                view_class.permission_classes = list(view_class.permission_classes) + [HasCustomPermission]
-        else:
-            view_class.permission_classes = [HasCustomPermission]
+        # ✅ FORÇAR: Sobrescrever permission_classes completamente
+        view_class.permission_classes = [HasCustomPermission]
+        
+        # ✅ CRÍTICO: Sobrescrever get_permissions para garantir aplicação
+        def get_permissions(self):
+            """Garantir que sempre usa HasCustomPermission"""
+            self.permission_required = view_class.permission_required  # ← CORRIGIDO
+            
+            # Retornar sempre nossa classe de permissão
+            return [HasCustomPermission()]
+        
+        view_class.get_permissions = get_permissions
         
         return view_class
-
-# Funções auxiliares para verificar permissões
-def check_permission(user, permission_name):
-    """
-    Função auxiliar para verificar permissão de um usuário
-    """
-    permission_checker = HasCustomPermission()
-    return permission_checker.user_has_permission(user, permission_name)
-
-def get_user_permissions(user):
-    """
-    Retorna todas as permissões customizadas de um usuário
-    """
-    if user.is_superuser:
-        return PermissaoCustomizada.objects.filter(ativo=True)
-    
-    # Buscar permissões via grupos
-    user_groups = user.groups.all()
-    permissions = []
-    
-    for group in user_groups:
-        group_permissions = group.permissions.all()
-        for perm in group_permissions:
-            try:
-                perm_custom = PermissaoCustomizada.objects.get(nome=perm.codename, ativo=True)
-                permissions.append(perm_custom)
-            except PermissaoCustomizada.DoesNotExist:
-                pass
-    
-    return permissions

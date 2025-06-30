@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from django.utils import timezone
 
 from .models import Usuario
 from .serializers import (
@@ -62,18 +63,17 @@ def logout_view(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, HasCustomPermission])
-def status_online_view(request):
-    """Endpoint para verificar status online/offline dos usuários"""
-    # Definir permissão necessária para esta view
-    request.required_permission = 'accounts_visualizar'
-    
-    usuarios_online = Usuario.objects.filter(is_online=True)
-    serializer = UsuarioBasicoSerializer(usuarios_online, many=True)
+@permission_classes([IsAuthenticated])  # ✅ Apenas autenticação, sem permissão específica
+def status_online(request):
+    """Endpoint para verificar usuários online"""
+    usuarios_online = Usuario.objects.filter(
+        last_activity__gte=timezone.now() - timezone.timedelta(minutes=15)
+    ).values('id', 'username', 'first_name', 'last_name')
     
     return Response({
-        'usuarios_online': serializer.data,
-        'total_online': usuarios_online.count()
+        'usuarios_online': list(usuarios_online),
+        'total': usuarios_online.count(),
+        'timestamp': timezone.now().isoformat()
     })
 
 @RequirePermission('accounts_visualizar')
@@ -184,7 +184,7 @@ class UsuarioGruposView(APIView):
 @permission_classes([IsAuthenticated])
 def minhas_permissoes_view(request):
     """Endpoint para usuário ver suas próprias permissões"""
-    from controle_acesso.permissions import get_user_permissions
+    from controle_acesso.utils import get_user_permissions
     from controle_acesso.serializers import PermissaoCustomizadaSerializer
     
     permissoes = get_user_permissions(request.user)

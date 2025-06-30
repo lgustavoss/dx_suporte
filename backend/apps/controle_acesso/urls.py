@@ -4,17 +4,22 @@ from . import views
 
 # Router para ViewSets
 router = DefaultRouter()
-router.register(r'grupos', views.GrupoViewSet, basename='grupos')
-router.register(r'permissoes', views.PermissaoViewSet, basename='permissoes')
+router.register(r'permissoes', views.PermissaoCustomizadaViewSet, basename='permissoes')
+router.register(r'grupos-customizados', views.GrupoCustomizadoViewSet, basename='grupos-customizados')
 
 urlpatterns = [
-    # CRUD grupos e permissões
-    path('permissoes/sync/', views.SyncPermissoesView.as_view(), name='sync-permissoes'),
+    # URL de Sincronização de Permissões
+    path('sync-permissoes/', views.SyncPermissoesView.as_view(), name='sync-permissoes'),
+    
+    # Router URLs
     path('', include(router.urls)),
     
-    # Relacionamentos na perspectiva do GRUPO
+    # Grupos e permissões
     path('grupos/<int:grupo_id>/usuarios/', views.GrupoUsuariosView.as_view(), name='grupo-usuarios'),
     path('grupos/<int:grupo_id>/usuarios/<int:usuario_id>/', views.RemoverUsuarioGrupoView.as_view(), name='remover-usuario-grupo'),
     path('grupos/<int:grupo_id>/permissoes/', views.GrupoPermissoesView.as_view(), name='grupo-permissoes'),
     path('grupos/<int:grupo_id>/permissoes/<int:permissao_id>/', views.RemoverPermissaoGrupoView.as_view(), name='remover-permissao-grupo'),
+    
+    # Teste de permissões
+    path('test-permissions/', views.TestPermissionsView.as_view(), name='test-permissions'),
 ]
