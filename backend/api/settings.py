@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Django Filter (opcional, para filtros avançados)
     'django_filters',
+    # Django REST Framework Spectacular (para OpenAPI)
+    'drf_spectacular',
     # Django REST Framework
     'rest_framework',
     'rest_framework_simplejwt',
@@ -179,6 +181,80 @@ REST_FRAMEWORK = {
         'core.filters.GlobalSearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'ORDERING_PARAM': 'ordering',
+    # Configuração de documentação OpenAPI
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Configuração do DRF Spectacular
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DX Suporte API',
+    'DESCRIPTION': 'Sistema completo de controle de acesso e suporte ao cliente',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    
+    'SERVERS': [
+        {
+            'url': 'http://localhost:8000',
+            'description': 'Desenvolvimento Local'
+        }
+    ],
+    
+    'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'COMPONENT_SPLIT_REQUEST': True,
+    
+    # TAGS: Apenas estas 4 seções aparecerão
+    'TAGS': [
+        {'name': 'Autenticação', 'description': 'Endpoints de login, logout e tokens'},
+        {'name': 'Usuários', 'description': 'CRUD e gestão de usuários'},
+        {'name': 'Controle de Acesso', 'description': 'Grupos e permissões'},
+        {'name': 'Utilitários', 'description': 'Endpoints auxiliares'},
+    ],
+    
+    # CONFIGURAÇÕES RESTRITIVAS: Evitar seções automáticas
+    'OPERATION_SORTER': 'method',
+    'TAG_SORTER': 'alpha',
+    'DISABLE_ERRORS_AND_WARNINGS': True,
+    
+    'SECURITY': [
+        {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
+            'description': 'Token JWT obtido via /api/v1/auth/login/'
+        }
+    ],
+    
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+        'defaultModelsExpandDepth': 1,
+        'defaultModelExpandDepth': 1,
+        'displayRequestDuration': True,
+        'filter': True,
+        'showExtensions': True,
+        'showCommonExtensions': True,
+        'tagsSorter': 'alpha',
+        'operationsSorter': 'method',
+    },
+    
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': False,
+        'expandResponses': '200,201',
+        'pathInMiddlePanel': True,
+    },
+    
+    'CONTACT': {
+        'name': 'DX Suporte',
+        'email': 'suporte@duplexsoft.com.br',
+    },
+    
+    'LICENSE': {
+        'name': 'MIT License',
+    },
+    
+    'SORT_OPERATIONS': True,
 }
 
 # Configurações da API
@@ -193,6 +269,7 @@ CONTROLE_ACESSO = {
         'django_filters',  # Django Filter, não deve ser modificado
         'rest_framework', # Django REST Framework, não deve ser modificado
         'django.contrib.admin',  # Admin do Django, não deve ser modificado
+        'drf_spectacular',  # DRF Spectacular, não deve ser modificado
         # 'outro_app_meta',  # Exemplo de como adicionar outros
     ],
     

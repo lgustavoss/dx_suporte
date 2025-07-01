@@ -3,12 +3,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.utils import timezone
+
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from .models import Usuario
 from .serializers import (
@@ -23,13 +25,28 @@ from controle_acesso.serializers import GrupoSimplificadoSerializer
 from controle_acesso.permissions import RequirePermission, HasCustomPermission
 from core.filters import GlobalSearchFilter, UsuarioFilter
 from core.pagination import CustomPagination
-from .validators import ValidacaoCompleta  # ← IMPORT NOVO
+from .validators import ValidacaoCompleta 
 
+@extend_schema(
+    summary="Login JWT",
+    description="Autentica usuário e retorna tokens JWT (access + refresh)",
+    tags=['Autenticação'], 
+    request=CustomTokenObtainPairSerializer,
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'access': {'type': 'string'},
+                'refresh': {'type': 'string'},
+                'user': {'type': 'object'}
+            }
+        }
+    }
+)
 class CustomTokenObtainPairView(TokenObtainPairView):
     """Login customizado que marca usuário como online"""
     serializer_class = CustomTokenObtainPairSerializer
-    permission_classes = [AllowAny]  # Login deve ser público
-    
+
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
@@ -41,6 +58,18 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 pass
         return response
 
+@extend_schema(
+    summary="Logout",
+    description="Desloga usuário e adiciona refresh token à blacklist",
+    tags=['Autenticação'],  
+    request={
+        'type': 'object',
+        'properties': {
+            'refresh_token': {'type': 'string'}
+        }
+    },
+    responses={200: {'description': 'Logout realizado com sucesso'}}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
@@ -62,8 +91,23 @@ def logout_view(request):
             'error': 'Erro ao realizar logout'
         }, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema(
+    summary="Status Online",
+    description="Lista usuários atualmente online no sistema",
+    tags=['Utilitários'],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'usuarios_online': {'type': 'array'},
+                'total': {'type': 'integer'},
+                'timestamp': {'type': 'string'}
+            }
+        }
+    }
+)
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # ✅ Apenas autenticação, sem permissão específica
+@permission_classes([IsAuthenticated])
 def status_online(request):
     """Endpoint para verificar usuários online"""
     usuarios_online = Usuario.objects.filter(
@@ -76,7 +120,38 @@ def status_online(request):
         'timestamp': timezone.now().isoformat()
     })
 
-@RequirePermission('accounts_visualizar')
+@extend_schema_view(
+    list=extend_schema(
+        summary="Listar usuários",
+        description="Lista usuários com paginação e filtros",
+        tags=['Usuários'],  
+    ),
+    create=extend_schema(
+        summary="Criar usuário", 
+        description="Cria novo usuário no sistema",
+        tags=['Usuários'],  
+    ),
+    retrieve=extend_schema(
+        summary="Detalhes do usuário",
+        description="Obtém detalhes de um usuário específico",
+        tags=['Usuários'],  
+    ),
+    update=extend_schema(
+        summary="Atualizar usuário",
+        description="Atualiza dados do usuário",
+        tags=['Usuários'],  
+    ),
+    partial_update=extend_schema(
+        summary="Atualizar usuário parcialmente",
+        description="Atualiza dados específicos do usuário (PATCH)",
+        tags=['Usuários'],
+    ),
+    destroy=extend_schema(
+        summary="Excluir usuário",
+        description="Remove usuário do sistema",
+        tags=['Usuários'],  
+    ),
+)
 class UsuarioViewSet(viewsets.ModelViewSet):
     """ViewSet completo para gerenciar usuários com validações de segurança"""
     queryset = Usuario.objects.filter(is_active=True).order_by('username')
@@ -157,9 +232,17 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         instance.is_active = False
         instance.save()
 
+@extend_schema(
+    summary="Grupos do Usuário",
+    description="Lista e gerencia grupos de um usuário específico",
+    tags=['Usuários'],
+    responses={200: {'description': 'Lista de grupos do usuário'}}
+)
 @RequirePermission('accounts_visualizar')
 class UsuarioGruposView(APIView):
     """Listar grupos de um usuário específico (perspectiva do usuário)"""
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    
     def get(self, request, usuario_id):
         try:
             usuario = Usuario.objects.get(id=usuario_id, is_active=True)
@@ -180,19 +263,110 @@ class UsuarioGruposView(APIView):
         except Usuario.DoesNotExist:
             return Response({'error': 'Usuário não encontrado ou inativo'}, status=status.HTTP_404_NOT_FOUND)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def minhas_permissoes_view(request):
+@extend_schema(
+    summary="Status Online Pessoal",
+    description="Verifica e atualiza status online do usuário autenticado",
+    tags=['Utilitários'],  
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'user': {'type': 'string'},
+                'is_online': {'type': 'boolean'},
+                'last_activity': {'type': 'string'},
+                'session_duration': {'type': 'string'}
+            }
+        }
+    }
+)
+class StatusOnlineView(APIView):
+    """Endpoint para verificar e atualizar o status online do usuário autenticado"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Retorna o status online do usuário"""
+        usuario = request.user
+        is_online = usuario.is_online
+        last_activity = usuario.last_activity.isoformat() if usuario.last_activity else None
+        
+        # Atualiza a última atividade para agora
+        usuario.last_activity = timezone.now()
+        usuario.save(update_fields=['last_activity'])
+        
+        return Response({
+            "user": usuario.username,
+            "is_online": is_online,
+            "last_activity": last_activity,
+            "session_duration": self.calcular_duracao_sessao(usuario)
+        })
+    
+    def calcular_duracao_sessao(self, usuario):
+        """Calcula a duração da sessão do usuário"""
+        if usuario.last_login:
+            duracao = timezone.now() - usuario.last_login
+            return str(duracao).split(".")[0]  # Retorna no formato HH:MM:SS
+        return "00:00:00"
+
+@extend_schema(
+    summary="Minhas Permissões",
+    description="Lista permissões do usuário autenticado",
+    tags=['Utilitários'],  
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'usuario': {'type': 'string'},
+                'permissoes': {'type': 'array'},
+                'total': {'type': 'integer'},
+                'is_superuser': {'type': 'boolean'}
+            }
+        }
+    }
+)
+class MinhasPermissoesView(APIView):
     """Endpoint para usuário ver suas próprias permissões"""
-    from controle_acesso.utils import get_user_permissions
-    from controle_acesso.serializers import PermissaoCustomizadaSerializer
+    permission_classes = [IsAuthenticated]
     
-    permissoes = get_user_permissions(request.user)
-    serializer = PermissaoCustomizadaSerializer(permissoes, many=True)
+    def get(self, request):
+        from controle_acesso.utils import get_user_permissions
+        from controle_acesso.serializers import PermissaoCustomizadaSerializer
+        
+        permissoes = get_user_permissions(request.user)
+        serializer = PermissaoCustomizadaSerializer(permissoes, many=True)
+        
+        return Response({
+            'usuario': request.user.username,
+            'permissoes': serializer.data,
+            'total': len(serializer.data),
+            'is_superuser': request.user.is_superuser
+        })
+
+@extend_schema(
+    summary="Refresh Token",
+    description="Renova token de acesso usando refresh token válido",
+    tags=['Autenticação'],
+    request={
+        'type': 'object',
+        'properties': {
+            'refresh': {'type': 'string', 'description': 'Token de refresh válido'}
+        },
+        'required': ['refresh']
+    },
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'access': {'type': 'string', 'description': 'Novo token de acesso'}
+            }
+        },
+        401: {'description': 'Token de refresh inválido ou expirado'}
+    }
+)
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Endpoint para renovar token de acesso usando refresh token
     
-    return Response({
-        'usuario': request.user.username,
-        'permissoes': serializer.data,
-        'total': len(serializer.data),
-        'is_superuser': request.user.is_superuser
-    })
+    O refresh token é válido por mais tempo que o access token,
+    permitindo renovação automática sem novo login.
+    """
+    pass

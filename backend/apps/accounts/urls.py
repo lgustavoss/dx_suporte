@@ -1,12 +1,12 @@
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
-    CustomTokenObtainPairView, 
-    logout_view, 
-    status_online, 
+    CustomTokenObtainPairView,
+    CustomTokenRefreshView,  # ✅ ADICIONAR NOVA VIEW
+    logout_view,
+    status_online,
     UsuarioViewSet,
     UsuarioGruposView,
-    minhas_permissoes_view 
+    MinhasPermissoesView 
 )
 from rest_framework.routers import DefaultRouter
 
@@ -15,20 +15,20 @@ router = DefaultRouter()
 router.register(r'usuarios', UsuarioViewSet, basename='usuarios')
 
 urlpatterns = [
-    # Autenticação JWT
+    # ✅ Autenticação JWT - TODOS com tags 'Autenticação'
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', logout_view, name='logout'),
     
-    # Status online/offline
-    path('status-online/', status_online, name='status_online'), 
+    # ✅ Status online/offline - tag 'Utilitários'
+    path('status-online/', status_online, name='status_online'),
     
-    # CRUD usuários
+    # ✅ CRUD usuários - todas as actions com tag 'Usuários'
     path('', include(router.urls)),
     
-    # Relacionamentos na perspectiva do USUÁRIO
+    # ✅ Relacionamentos - tag 'Usuários'
     path('usuarios/<int:usuario_id>/grupos/', UsuarioGruposView.as_view(), name='usuario-grupos'),
     
-    # Permissões do usuário autenticado
-    path('minhas-permissoes/', minhas_permissoes_view, name='minhas-permissoes'),
+    # ✅ Permissões do usuário autenticado - tag 'Utilitários'
+    path('minhas-permissoes/', MinhasPermissoesView.as_view(), name='minhas-permissoes'),
 ]

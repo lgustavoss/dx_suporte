@@ -8,12 +8,13 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from .models import PermissaoCustomizada, GrupoCustomizado
 from .serializers import PermissaoCustomizadaSerializer, GrupoCustomizadoSerializer
 from .permissions import HasCustomPermission, RequirePermission
 
-# ✅ IMPORTAÇÃO ADICIONAL: Para filtros customizados se existir
+# Verifica se a classe GlobalSearchFilter existe
 try:
     from core.filters import GlobalSearchFilter
 except ImportError:
@@ -22,6 +23,38 @@ except ImportError:
         pass
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Listar permissões",
+        description="Lista todas as permissões customizadas",
+        tags=['Controle de Acesso'],  
+    ),
+    create=extend_schema(
+        summary="Criar permissão",
+        description="Cria uma nova permissão customizada",
+        tags=['Controle de Acesso'],  
+    ),
+    retrieve=extend_schema(
+        summary="Detalhes da permissão",
+        description="Obtém detalhes de uma permissão específica",
+        tags=['Controle de Acesso'],  
+    ),
+    update=extend_schema(
+        summary="Atualizar permissão (PUT)",
+        description="Substitui completamente dados da permissão",
+        tags=['Controle de Acesso'],  
+    ),
+    partial_update=extend_schema(
+        summary="Atualizar permissão (PATCH)",
+        description="Atualiza campos específicos da permissão",
+        tags=['Controle de Acesso'],
+    ),
+    destroy=extend_schema(
+        summary="Excluir permissão",
+        description="Remove uma permissão do sistema",
+        tags=['Controle de Acesso'],  
+    ),
+)
 class PermissaoCustomizadaViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar permissões customizadas"""
     
@@ -57,44 +90,75 @@ class PermissaoCustomizadaViewSet(viewsets.ModelViewSet):
         return [HasCustomPermission()]
 
 
-class GrupoViewSet(viewsets.ModelViewSet):
-    """✅ CORRIGIDO: ViewSet original do sistema"""
+@extend_schema_view(
+    list=extend_schema(
+        summary="Listar grupos",
+        description="Lista todos os grupos customizados",
+        tags=['Controle de Acesso'],  
+    ),
+    create=extend_schema(
+        summary="Criar grupo",
+        description="Cria um novo grupo customizado",
+        tags=['Controle de Acesso'],  
+    ),
+    retrieve=extend_schema(
+        summary="Detalhes do grupo",
+        description="Obtém detalhes de um grupo específico",
+        tags=['Controle de Acesso'],  
+    ),
+    update=extend_schema(
+        summary="Atualizar grupo (PUT)",
+        description="Substitui completamente dados do grupo",
+        tags=['Controle de Acesso'],  
+    ),
+    partial_update=extend_schema( 
+        summary="Atualizar grupo (PATCH)",
+        description="Atualiza campos específicos do grupo",
+        tags=['Controle de Acesso'],
+    ),
+    destroy=extend_schema(
+        summary="Excluir grupo",
+        description="Remove um grupo do sistema",
+        tags=['Controle de Acesso'],  
+    ),
     
-    queryset = Group.objects.all()
-    permission_classes = [HasCustomPermission]
+    # ✅ ADICIONAR: Tags para actions customizadas
+    add_permission=extend_schema(
+        summary="Adicionar Permissão ao Grupo",
+        description="Adiciona uma permissão específica ao grupo",
+        tags=['Controle de Acesso'],
+        request={
+            'type': 'object',
+            'properties': {
+                'permission_id': {'type': 'integer', 'description': 'ID da permissão'}
+            }
+        },
+        responses={
+            200: {'description': 'Permissão adicionada com sucesso'},
+            404: {'description': 'Grupo ou permissão não encontrada'}
+        }
+    ),
     
-    # ✅ CORRIGIDO: Filtros básicos sem GlobalSearchFilter problemático
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name']
-    filterset_fields = ['name']
-    ordering_fields = ['name']
-    ordering = ['name']
-    
-    def get_serializer_class(self):
-        """Retornar serializer apropriado"""
-        # Se existir um serializer customizado, usar ele
-        try:
-            from .serializers import GrupoSerializer
-            return GrupoSerializer
-        except ImportError:
-            # Usar serializer básico
-            from rest_framework import serializers
-            
-            class BasicGroupSerializer(serializers.ModelSerializer):
-                class Meta:
-                    model = Group
-                    fields = ['id', 'name']
-            
-            return BasicGroupSerializer
-
-
+    remove_permission=extend_schema(
+        summary="Remover Permissão do Grupo",
+        description="Remove uma permissão específica do grupo",
+        tags=['Controle de Acesso'],
+        request={
+            'type': 'object',
+            'properties': {
+                'permission_id': {'type': 'integer', 'description': 'ID da permissão'}
+            }
+        },
+        responses={
+            200: {'description': 'Permissão removida com sucesso'},
+            404: {'description': 'Grupo ou permissão não encontrada'}
+        }
+    ),
+)
 class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar grupos customizados"""
-    
     queryset = GrupoCustomizado.objects.all()
     serializer_class = GrupoCustomizadoSerializer
-    
-    # ✅ SEMPRE usar nossa classe de permissão
     permission_classes = [HasCustomPermission]
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -105,13 +169,11 @@ class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """Definir permissões baseadas na action"""
-        # ✅ TODAS as actions requerem permissão de gerenciar grupos
         self.permission_required = 'controle_acesso_gerenciar'
         return [HasCustomPermission()]
     
     def has_permission(self, request, view):
         """Método adicional para garantir verificação"""
-        # Forçar verificação de permissão mesmo para ViewSets
         if not request.user or not request.user.is_authenticated:
             return False
         
@@ -121,7 +183,7 @@ class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
         permission_checker = HasCustomPermission()
         return permission_checker.user_has_permission(request.user, 'controle_acesso_gerenciar')
     
-    # Manter actions customizadas (@action)
+    # ✅ MANTER: Actions customizadas já existentes
     @action(detail=True, methods=['post'])
     def add_permission(self, request, pk=None):
         """Adicionar permissão a um grupo"""
@@ -164,6 +226,12 @@ class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
 
 
 @RequirePermission('controle_acesso_visualizar')
+@extend_schema(
+    summary="Permissões do Grupo",
+    description="Gerencia permissões de um grupo específico",
+    tags=['Controle de Acesso'],  
+    responses={200: {'description': 'Lista de permissões do grupo'}}
+)
 class GrupoPermissoesView(APIView):
     """✅ CORRIGIDO: Gerenciar permissões em grupos com permissão específica"""
     permission_classes = [HasCustomPermission]
@@ -245,6 +313,22 @@ class GrupoPermissoesView(APIView):
 
 # ✅ NOVA VIEW: Para testar o sistema de permissões
 @RequirePermission('controle_acesso_visualizar')
+@extend_schema(
+    summary="Testar Permissões do Usuário",
+    description="Endpoint para testar sistema de permissões do usuário atual",
+    tags=['Utilitários'],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'user': {'type': 'string'},
+                'is_superuser': {'type': 'boolean'},
+                'permissions_count': {'type': 'integer'},
+                'permissions': {'type': 'array'}
+            }
+        }
+    }
+)
 class TestPermissionsView(APIView):
     """View para testar o sistema de permissões"""
     permission_classes = [HasCustomPermission]
@@ -272,6 +356,13 @@ class TestPermissionsView(APIView):
         })
 
 
+@extend_schema(
+    summary="Sincronizar Permissões",
+    description="Sincroniza automaticamente todas as permissões do sistema",
+    tags=['Controle de Acesso'],  
+    request=None,
+    responses={200: {'description': 'Permissões sincronizadas com sucesso'}}
+)
 @RequirePermission('controle_acesso_gerenciar')
 class SyncPermissoesView(APIView):
     """View para sincronizar permissões automaticamente"""
@@ -299,6 +390,12 @@ class SyncPermissoesView(APIView):
 
 # Views auxiliares que também podem estar faltando
 @RequirePermission('controle_acesso_visualizar')
+@extend_schema(
+    summary="Usuários do Grupo", 
+    description="Gerencia usuários de um grupo específico",
+    tags=['Controle de Acesso'],  
+    responses={200: {'description': 'Lista de usuários do grupo'}}
+)
 class GrupoUsuariosView(APIView):
     """View para gerenciar usuários em grupos"""
     permission_classes = [HasCustomPermission]
@@ -357,18 +454,25 @@ class GrupoUsuariosView(APIView):
 
 
 @RequirePermission('controle_acesso_editar')
+@extend_schema(
+    summary="Remover Usuário do Grupo",
+    description="Remove usuário específico de um grupo",
+    tags=['Controle de Acesso'],
+    responses={
+        200: {'description': 'Usuário removido com sucesso'},
+        404: {'description': 'Usuário ou grupo não encontrado'}
+    }
+)
 class RemoverUsuarioGrupoView(APIView):
     """View para remover usuário de um grupo"""
     permission_classes = [HasCustomPermission]
     
     def delete(self, request, grupo_id, usuario_id):
-        """Remover usuário de um grupo"""
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            
-            from accounts.models import Usuario
             usuario = Usuario.objects.get(id=usuario_id)
             
+            # Remover usuário do grupo Django
             grupo_custom.group.user_set.remove(usuario)
             
             return Response({
@@ -382,21 +486,30 @@ class RemoverUsuarioGrupoView(APIView):
 
 
 @RequirePermission('controle_acesso_editar')
+@extend_schema(
+    summary="Remover Permissão do Grupo",
+    description="Remove permissão específica de um grupo",
+    tags=['Controle de Acesso'],
+    responses={
+        200: {'description': 'Permissão removida com sucesso'},
+        404: {'description': 'Permissão ou grupo não encontrado'}
+    }
+)
 class RemoverPermissaoGrupoView(APIView):
     """View para remover permissão de um grupo"""
     permission_classes = [HasCustomPermission]
     
-    def delete(self, request, grupo_id, permissao_id):
-        """Remover permissão de um grupo"""
+    def delete(self, request, grupo_id, permission_id):
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
-            permission = Permission.objects.get(id=permissao_id)
+            permission = Permission.objects.get(id=permission_id)
             
+            # Remover permissão do grupo Django
             grupo_custom.group.permissions.remove(permission)
             
             return Response({
                 'status': 'success',
-                'message': f'Permissão {permission.name} removida do grupo {grupo_custom.group.name}'
+                'message': f'Permissão removida do grupo {grupo_custom.group.name}'
             })
         except (GrupoCustomizado.DoesNotExist, Permission.DoesNotExist) as e:
             return Response({
