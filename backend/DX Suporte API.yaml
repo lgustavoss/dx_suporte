@@ -1,0 +1,1756 @@
+openapi: 3.0.3
+info:
+  title: DX Suporte API
+  version: 1.0.0
+  description: Sistema completo de controle de acesso e suporte ao cliente
+  contact:
+    name: DX Suporte
+    email: suporte@duplexsoft.com.br
+  license:
+    name: MIT License
+paths:
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Autentica usuário e retorna tokens JWT (access + refresh)
+      summary: Login JWT
+      tags:
+      - Autenticação
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+        required: true
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+                  refresh:
+                    type: string
+                  user:
+                    type: object
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Desloga usuário e adiciona refresh token à blacklist
+      summary: Logout
+      tags:
+      - Autenticação
+      requestBody:
+        content:
+          type:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          properties:
+            schema:
+              refresh_token:
+                type: string
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Logout realizado com sucesso
+          description: ''
+  /api/v1/auth/minhas-permissoes/:
+    get:
+      operationId: auth_minhas_permissoes_retrieve
+      description: Lista permissões do usuário autenticado
+      summary: Minhas Permissões
+      tags:
+      - Utilitários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  usuario:
+                    type: string
+                  permissoes:
+                    type: array
+                  total:
+                    type: integer
+                  is_superuser:
+                    type: boolean
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: Renova token de acesso usando refresh token válido
+      summary: Refresh Token
+      tags:
+      - Autenticação
+      requestBody:
+        content:
+          type:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          properties:
+            schema:
+              refresh:
+                type: string
+                description: Token de refresh válido
+          required:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+                    description: Novo token de acesso
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                description: Token de refresh inválido ou expirado
+          description: ''
+  /api/v1/auth/status-online/:
+    get:
+      operationId: auth_status_online_retrieve
+      description: Lista usuários atualmente online no sistema
+      summary: Status Online
+      tags:
+      - Utilitários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  usuarios_online:
+                    type: array
+                  total:
+                    type: integer
+                  timestamp:
+                    type: string
+          description: ''
+  /api/v1/auth/usuarios/:
+    get:
+      operationId: auth_usuarios_list
+      description: Lista usuários com paginação e filtros
+      summary: Listar usuários
+      parameters:
+      - in: query
+        name: created_after
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_before
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: is_online
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Usuários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsuarioBasicoList'
+          description: ''
+    post:
+      operationId: auth_usuarios_create
+      description: Cria novo usuário no sistema
+      summary: Criar usuário
+      tags:
+      - Usuários
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UsuarioCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UsuarioCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioCreate'
+          description: ''
+  /api/v1/auth/usuarios/{id}/:
+    get:
+      operationId: auth_usuarios_retrieve
+      description: Obtém detalhes de um usuário específico
+      summary: Detalhes do usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Usuário.
+        required: true
+      tags:
+      - Usuários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhado'
+          description: ''
+    put:
+      operationId: auth_usuarios_update
+      description: Atualiza dados do usuário
+      summary: Atualizar usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Usuário.
+        required: true
+      tags:
+      - Usuários
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UsuarioRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UsuarioRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+          description: ''
+    patch:
+      operationId: auth_usuarios_partial_update
+      description: Atualiza dados específicos do usuário (PATCH)
+      summary: Atualizar usuário parcialmente
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Usuário.
+        required: true
+      tags:
+      - Usuários
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUsuarioRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUsuarioRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUsuarioRequest'
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+          description: ''
+    delete:
+      operationId: auth_usuarios_destroy
+      description: Remove usuário do sistema
+      summary: Excluir usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Usuário.
+        required: true
+      tags:
+      - Usuários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/usuarios/{usuario_id}/grupos/:
+    get:
+      operationId: auth_usuarios_grupos_retrieve
+      description: Lista e gerencia grupos de um usuário específico
+      summary: Grupos do Usuário
+      parameters:
+      - in: path
+        name: usuario_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Usuários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Lista de grupos do usuário
+          description: ''
+  /api/v1/controle-acesso/grupos-customizados/:
+    get:
+      operationId: controle_acesso_grupos_customizados_list
+      description: Lista todos os grupos customizados
+      summary: Listar grupos
+      parameters:
+      - in: query
+        name: group__name
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGrupoCustomizadoList'
+          description: ''
+    post:
+      operationId: controle_acesso_grupos_customizados_create
+      description: Cria um novo grupo customizado
+      summary: Criar grupo
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrupoCustomizadoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GrupoCustomizadoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GrupoCustomizadoRequest'
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrupoCustomizado'
+          description: ''
+  /api/v1/controle-acesso/grupos-customizados/{id}/:
+    get:
+      operationId: controle_acesso_grupos_customizados_retrieve
+      description: Obtém detalhes de um grupo específico
+      summary: Detalhes do grupo
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Grupo Customizado.
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrupoCustomizado'
+          description: ''
+    put:
+      operationId: controle_acesso_grupos_customizados_update
+      description: Substitui completamente dados do grupo
+      summary: Atualizar grupo (PUT)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Grupo Customizado.
+        required: true
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrupoCustomizadoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GrupoCustomizadoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GrupoCustomizadoRequest'
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrupoCustomizado'
+          description: ''
+    patch:
+      operationId: controle_acesso_grupos_customizados_partial_update
+      description: Atualiza campos específicos do grupo
+      summary: Atualizar grupo (PATCH)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Grupo Customizado.
+        required: true
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGrupoCustomizadoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGrupoCustomizadoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGrupoCustomizadoRequest'
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrupoCustomizado'
+          description: ''
+    delete:
+      operationId: controle_acesso_grupos_customizados_destroy
+      description: Remove um grupo do sistema
+      summary: Excluir grupo
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Grupo Customizado.
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '204':
+          description: No response body
+  /api/v1/controle-acesso/grupos-customizados/{id}/add_permission/:
+    post:
+      operationId: controle_acesso_grupos_customizados_add_permission_create
+      description: Adiciona uma permissão específica ao grupo
+      summary: Adicionar Permissão ao Grupo
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Grupo Customizado.
+        required: true
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          type:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          properties:
+            schema:
+              permission_id:
+                type: integer
+                description: ID da permissão
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Permissão adicionada com sucesso
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Grupo ou permissão não encontrada
+          description: ''
+  /api/v1/controle-acesso/grupos-customizados/{id}/remove_permission/:
+    delete:
+      operationId: controle_acesso_grupos_customizados_remove_permission_destroy
+      description: Remove uma permissão específica do grupo
+      summary: Remover Permissão do Grupo
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Grupo Customizado.
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Permissão removida com sucesso
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Grupo ou permissão não encontrada
+          description: ''
+  /api/v1/controle-acesso/grupos/{grupo_id}/permissoes/:
+    get:
+      operationId: controle_acesso_grupos_permissoes_retrieve
+      description: Gerencia permissões de um grupo específico
+      summary: Permissões do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Lista de permissões do grupo
+          description: ''
+    post:
+      operationId: controle_acesso_grupos_permissoes_create
+      description: Gerencia permissões de um grupo específico
+      summary: Permissões do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Lista de permissões do grupo
+          description: ''
+    delete:
+      operationId: controle_acesso_grupos_permissoes_destroy
+      description: Gerencia permissões de um grupo específico
+      summary: Permissões do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Lista de permissões do grupo
+          description: ''
+  /api/v1/controle-acesso/grupos/{grupo_id}/permissoes/{permissao_id}/:
+    delete:
+      operationId: controle_acesso_grupos_permissoes_destroy_2
+      description: Remove permissão específica de um grupo
+      summary: Remover Permissão do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: permissao_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Permissão removida com sucesso
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Permissão ou grupo não encontrado
+          description: ''
+  /api/v1/controle-acesso/grupos/{grupo_id}/usuarios/:
+    get:
+      operationId: controle_acesso_grupos_usuarios_retrieve
+      description: Gerencia usuários de um grupo específico
+      summary: Usuários do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Lista de usuários do grupo
+          description: ''
+    post:
+      operationId: controle_acesso_grupos_usuarios_create
+      description: Gerencia usuários de um grupo específico
+      summary: Usuários do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Lista de usuários do grupo
+          description: ''
+  /api/v1/controle-acesso/grupos/{grupo_id}/usuarios/{usuario_id}/:
+    delete:
+      operationId: controle_acesso_grupos_usuarios_destroy
+      description: Remove usuário específico de um grupo
+      summary: Remover Usuário do Grupo
+      parameters:
+      - in: path
+        name: grupo_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: usuario_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Usuário removido com sucesso
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Usuário ou grupo não encontrado
+          description: ''
+  /api/v1/controle-acesso/permissoes/:
+    get:
+      operationId: controle_acesso_permissoes_list
+      description: Lista todas as permissões customizadas
+      summary: Listar permissões
+      parameters:
+      - in: query
+        name: acao
+        schema:
+          type: string
+      - in: query
+        name: ativo
+        schema:
+          type: boolean
+      - in: query
+        name: modulo
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPermissaoCustomizadaList'
+          description: ''
+    post:
+      operationId: controle_acesso_permissoes_create
+      description: Cria uma nova permissão customizada
+      summary: Criar permissão
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissaoCustomizadaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PermissaoCustomizadaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PermissaoCustomizadaRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissaoCustomizada'
+          description: ''
+  /api/v1/controle-acesso/permissoes/{id}/:
+    get:
+      operationId: controle_acesso_permissoes_retrieve
+      description: Obtém detalhes de uma permissão específica
+      summary: Detalhes da permissão
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Permissão Customizada.
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissaoCustomizada'
+          description: ''
+    put:
+      operationId: controle_acesso_permissoes_update
+      description: Substitui completamente dados da permissão
+      summary: Atualizar permissão (PUT)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Permissão Customizada.
+        required: true
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissaoCustomizadaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PermissaoCustomizadaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PermissaoCustomizadaRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissaoCustomizada'
+          description: ''
+    patch:
+      operationId: controle_acesso_permissoes_partial_update
+      description: Atualiza campos específicos da permissão
+      summary: Atualizar permissão (PATCH)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Permissão Customizada.
+        required: true
+      tags:
+      - Controle de Acesso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPermissaoCustomizadaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPermissaoCustomizadaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPermissaoCustomizadaRequest'
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissaoCustomizada'
+          description: ''
+    delete:
+      operationId: controle_acesso_permissoes_destroy
+      description: Remove uma permissão do sistema
+      summary: Excluir permissão
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Permissão Customizada.
+        required: true
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '204':
+          description: No response body
+  /api/v1/controle-acesso/sync-permissoes/:
+    post:
+      operationId: controle_acesso_sync_permissoes_create
+      description: Sincroniza automaticamente todas as permissões do sistema
+      summary: Sincronizar Permissões
+      tags:
+      - Controle de Acesso
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Permissões sincronizadas com sucesso
+          description: ''
+  /api/v1/controle-acesso/test-permissions/:
+    get:
+      operationId: controle_acesso_test_permissions_retrieve
+      description: Endpoint para testar sistema de permissões do usuário atual
+      summary: Testar Permissões do Usuário
+      tags:
+      - Utilitários
+      security:
+      - jwtAuth: []
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: Token JWT obtido via /api/v1/auth/login/
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: string
+                  is_superuser:
+                    type: boolean
+                  permissions_count:
+                    type: integer
+                  permissions:
+                    type: array
+          description: ''
+components:
+  schemas:
+    CustomTokenObtainPairRequest:
+      type: object
+      description: Serializer customizado para login com email
+      properties:
+        email:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    Group:
+      type: object
+      description: Serializer para Django Group
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+      required:
+      - id
+      - name
+    GroupRequest:
+      type: object
+      description: Serializer para Django Group
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+      required:
+      - name
+    GrupoCustomizado:
+      type: object
+      description: Serializer para grupos customizados
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        group:
+          allOf:
+          - $ref: '#/components/schemas/Group'
+          readOnly: true
+        descricao:
+          type: string
+          nullable: true
+        ativo:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - group
+      - id
+      - updated_at
+    GrupoCustomizadoRequest:
+      type: object
+      description: Serializer para grupos customizados
+      properties:
+        group_data:
+          allOf:
+          - $ref: '#/components/schemas/GroupRequest'
+          writeOnly: true
+        descricao:
+          type: string
+          nullable: true
+        ativo:
+          type: boolean
+    PaginatedGrupoCustomizadoList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GrupoCustomizado'
+    PaginatedPermissaoCustomizadaList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissaoCustomizada'
+    PaginatedUsuarioBasicoList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsuarioBasico'
+    PatchedGrupoCustomizadoRequest:
+      type: object
+      description: Serializer para grupos customizados
+      properties:
+        group_data:
+          allOf:
+          - $ref: '#/components/schemas/GroupRequest'
+          writeOnly: true
+        descricao:
+          type: string
+          nullable: true
+        ativo:
+          type: boolean
+    PatchedPermissaoCustomizadaRequest:
+      type: object
+      properties:
+        modulo:
+          type: string
+          minLength: 1
+          maxLength: 50
+        acao:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descricao:
+          type: string
+          nullable: true
+        auto_descoberta:
+          type: boolean
+        ativo:
+          type: boolean
+    PatchedUsuarioRequest:
+      type: object
+      description: Serializer para edição de usuários com validações de segurança
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 15
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        groups:
+          type: array
+          items:
+            type: integer
+          description: The groups this user belongs to. A user will get all permissions
+            granted to each of their groups.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password_atual:
+          type: string
+          writeOnly: true
+          minLength: 1
+    PermissaoCustomizada:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        modulo:
+          type: string
+          maxLength: 50
+        modulo_display:
+          type: string
+          readOnly: true
+        acao:
+          type: string
+          maxLength: 50
+        acao_display:
+          type: string
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+          nullable: true
+        auto_descoberta:
+          type: boolean
+        ativo:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - acao
+      - acao_display
+      - created_at
+      - id
+      - modulo
+      - modulo_display
+      - nome
+      - updated_at
+    PermissaoCustomizadaRequest:
+      type: object
+      properties:
+        modulo:
+          type: string
+          minLength: 1
+          maxLength: 50
+        acao:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descricao:
+          type: string
+          nullable: true
+        auto_descoberta:
+          type: boolean
+        ativo:
+          type: boolean
+      required:
+      - acao
+      - modulo
+      - nome
+    Usuario:
+      type: object
+      description: Serializer para edição de usuários com validações de segurança
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 15
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        groups:
+          type: array
+          items:
+            type: integer
+          description: The groups this user belongs to. A user will get all permissions
+            granted to each of their groups.
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - date_joined
+      - email
+      - id
+      - last_login
+      - username
+    UsuarioBasico:
+      type: object
+      description: Serializer simplificado para listagem de usuários
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_online:
+          type: boolean
+      required:
+      - email
+      - id
+      - username
+    UsuarioCreate:
+      type: object
+      description: Serializer para criação de usuários
+      properties:
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 15
+      required:
+      - email
+      - username
+    UsuarioCreateRequest:
+      type: object
+      description: Serializer para criação de usuários
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 15
+      required:
+      - email
+      - password
+      - password_confirm
+      - username
+    UsuarioDetalhado:
+      type: object
+      description: Serializer completo para detalhes do usuário
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 15
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_online:
+          type: boolean
+        date_joined:
+          type: string
+          format: date-time
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+        last_activity:
+          type: string
+          format: date-time
+        logout_time:
+          type: string
+          format: date-time
+          nullable: true
+        tempo_offline_formatado:
+          type: string
+          readOnly: true
+        total_grupos:
+          type: string
+          readOnly: true
+        grupos_nomes:
+          type: string
+          readOnly: true
+      required:
+      - email
+      - full_name
+      - grupos_nomes
+      - id
+      - tempo_offline_formatado
+      - total_grupos
+      - username
+    UsuarioRequest:
+      type: object
+      description: Serializer para edição de usuários com validações de segurança
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 15
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        groups:
+          type: array
+          items:
+            type: integer
+          description: The groups this user belongs to. A user will get all permissions
+            granted to each of their groups.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password_atual:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - username
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+- url: http://localhost:8000
+  description: Desenvolvimento Local
+tags:
+- name: Autenticação
+  description: Endpoints de login, logout e tokens
+- name: Usuários
+  description: CRUD e gestão de usuários
+- name: Controle de Acesso
+  description: Grupos e permissões
+- name: Utilitários
+  description: Endpoints auxiliares

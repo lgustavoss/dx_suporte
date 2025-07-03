@@ -6,7 +6,8 @@ from .views import (
     status_online,
     UsuarioViewSet,
     UsuarioGruposView,
-    MinhasPermissoesView 
+    MinhasPermissoesView,
+    me_view,
 )
 from rest_framework.routers import DefaultRouter
 
@@ -19,6 +20,9 @@ urlpatterns = [
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', logout_view, name='logout'),
+
+    # ✅ ADICIONAR: Endpoint para dados do usuário atual
+    path('usuarios/me/', me_view, name='usuarios-me'),
     
     # ✅ Status online/offline - tag 'Utilitários'
     path('status-online/', status_online, name='status_online'),

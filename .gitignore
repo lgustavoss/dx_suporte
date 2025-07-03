@@ -79,3 +79,13 @@ backend/logs/
 # Arquivos de backup
 *.bak
 *.backup
+
+# Arquivos de documentação pessoal/temporária
+CHAT_INSTRUCTIONS.md
+TODO.md
+NOTES.md
+docs/personal/
+docs/temp/
+*.todo
+*.notes
+node_modules

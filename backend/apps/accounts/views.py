@@ -370,3 +370,57 @@ class CustomTokenRefreshView(TokenRefreshView):
     permitindo renovação automática sem novo login.
     """
     pass
+
+@extend_schema(
+    summary="Meus Dados",
+    description="Retorna dados completos do usuário autenticado",
+    tags=['Utilitários'],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'id': {'type': 'integer'},
+                'username': {'type': 'string'},
+                'email': {'type': 'string'},
+                'first_name': {'type': 'string'},
+                'last_name': {'type': 'string'},
+                'full_name': {'type': 'string'},
+                'telefone': {'type': 'string'},
+                'is_active': {'type': 'boolean'},
+                'is_online': {'type': 'boolean'},
+                'date_joined': {'type': 'string'},
+                'last_login': {'type': 'string'},
+                'last_activity': {'type': 'string'},
+                'logout_time': {'type': 'string'},
+                'total_grupos': {'type': 'integer'},
+                'grupos_nomes': {'type': 'array'}
+            }
+        }
+    }
+)
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    """Endpoint para dados do usuário autenticado"""
+    if request.method == 'GET':
+        # Retornar dados completos do usuário
+        from .serializers import UsuarioDetalhadoSerializer
+        serializer = UsuarioDetalhadoSerializer(request.user)
+        return Response(serializer.data)
+    
+    elif request.method == 'PATCH':
+        # Atualizar dados do usuário
+        from .serializers import UsuarioSerializer
+        
+        # Validações de segurança
+        ValidacaoSeguranca.validar_autoexclusao(request.user, request.data)
+        
+        serializer = UsuarioSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Retornar dados atualizados
+            response_serializer = UsuarioDetalhadoSerializer(request.user)
+            return Response(response_serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
