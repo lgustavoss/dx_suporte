@@ -135,17 +135,17 @@ python manage.py runserver
 - Controle de permissões
 - Filtros e paginação
 
-### 🔄 Fase 2 - Validações (Em andamento)
-- Validações de negócio
-- Sistema de auditoria
-- Dashboard básico
+### ✅ Fase 2 - Validações (Concluída)
+- Validações de negócio implementadas
+- Sistema de auditoria básico entregue
+- Dashboard inicial disponível
 
-### 📅 Fase 3 - Módulos (Planejado)
-- Módulo Clientes
-- Módulo Contatos  
-- Módulo Configurações
-- Módulo Chamados
-- Módulo Chat/WhatsApp
+### 🔄 Fase 3 - Módulos (Em andamento)
+- Módulo Clientes (em desenvolvimento)
+- Módulo Contatos (em desenvolvimento)  
+- Módulo Configurações (planejado)
+- Módulo Chamados (planejado)
+- Módulo Chat/WhatsApp (planejado)
 
 ## 🤝 Contribuição
 
