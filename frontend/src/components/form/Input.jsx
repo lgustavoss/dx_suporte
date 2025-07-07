@@ -27,7 +27,7 @@ export default function Input({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`w-full px-3 py-2 border border-accent rounded focus:outline-none focus:ring-2 focus:ring-secondary font-sans ${className}`}
+        className={`w-full px-3 py-2 border border-accent rounded bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-secondary font-sans ${className}`}
         {...props}
       />
     </div>
