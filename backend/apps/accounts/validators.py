@@ -90,7 +90,7 @@ class ValidacaoSeguranca:
             # Se é o próprio usuário, limitar campos que pode editar
             campos_proprios_permitidos = [
                 'first_name', 'last_name', 'email', 'telefone', 
-                'password', 'password_atual'
+                'password', 'password_atual', 'username'
             ]
             
             campos_proibidos = []
