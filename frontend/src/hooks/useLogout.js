@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authFetch } from "../services/authFetch";
+import { useErrorHandler } from "../hooks/useErrorHandler";
 
 export function useLogout() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { showError } = useErrorHandler();
 
   async function logout() {
     setLoading(true);
@@ -15,7 +17,7 @@ export function useLogout() {
       localStorage.removeItem("user");
       navigate("/");
     } catch (err) {
-      alert("Erro ao fazer logout.");
+      showError(err);
     } finally {
       setLoading(false);
     }

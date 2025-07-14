@@ -4,9 +4,11 @@ import { Button } from "../../components/ui/Button";
 import bgImg from "../../assets/fundo.png";
 import { useLoginForm } from "../../hooks/useLoginForm";
 import { toast } from "react-toastify";
+import { useErrorHandler } from "../../hooks/useErrorHandler";
 
 export default function Login() {
   const { form, emailValid, emailTouched, handleChange, handleBlur, handleSubmit, loading } = useLoginForm();
+  const { showError } = useErrorHandler();
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -14,13 +16,7 @@ export default function Login() {
       await handleSubmit();
       // toast.success("Login realizado com sucesso!");
     } catch (error) {
-      let msg = "Usuário ou senha inválidos!";
-      if (error && error.response && error.response.data) {
-        msg = error.response.data.detail || error.response.data.message || msg;
-      } else if (error && error.message) {
-        msg = error.message;
-      }
-      toast.error(msg);
+      showError(error);
     }
   };
 
@@ -48,7 +44,7 @@ export default function Login() {
           </h1>
           <p className="text-base text-muted-foreground">Acesse sua conta para continuar</p>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <Input
             label="E-mail"
             name="email"

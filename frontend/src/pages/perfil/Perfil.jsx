@@ -9,9 +9,11 @@ import { toast } from "react-toastify";
 import BadgeStatus from "../../components/ui/BadgeStatus";
 import { updatePerfil } from "../../services/userService";
 import { maskTelefone } from "../../utils/mask";
+import { useErrorHandler } from "../../hooks/useErrorHandler";
 
 export default function Perfil() {
   const { user, loading } = usePerfil();
+  const { showError } = useErrorHandler();
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState(user || {});
   const [saving, setSaving] = useState(false);
@@ -35,7 +37,6 @@ export default function Perfil() {
 
   async function handleSave(e) {
     e.preventDefault();
-    console.log("Chamou handleSave");
     setSaving(true);
     try {
       const payload = {
@@ -45,13 +46,11 @@ export default function Perfil() {
         telefone: form.telefone,
         username: form.username,
       };
-      console.log("ID do usuário:", user.id);
-      console.log("Payload:", payload);
       await updatePerfil(user.id, payload);
       toast.success("Perfil atualizado com sucesso!");
       setEdit(false);
     } catch (err) {
-      toast.error("Erro ao atualizar perfil.");
+      showError(err); // Troque toast.error por showError
     } finally {
       setSaving(false);
     }

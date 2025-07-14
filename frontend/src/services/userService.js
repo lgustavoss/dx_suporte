@@ -22,8 +22,8 @@ export async function updatePerfil(id, data) {
   console.log("Token:", token);
   console.log("Token antes do PATCH:", token);
   if (!token) {
-    alert("Você não está autenticado. Faça login novamente.");
-    throw new Error("Token ausente");
+    // Retorna um erro se o token não estiver presente
+    throw new Error("Você não está autenticado. Faça login novamente.");
   }
   try {
     const res = await fetch(`${API_BASE_URL}auth/usuarios/${id}/`, {
