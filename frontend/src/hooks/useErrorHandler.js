@@ -6,7 +6,11 @@ import { toast } from "react-toastify";
  */
 export function useErrorHandler() {
   function showError(error) {
-    toast.error("Ocorreu um erro. Tente novamente.");
+    if (error && error.message && error.message !== "Erro ao atualizar usuário") {
+      toast.error(error.message);
+    } else {
+      toast.error("Ocorreu um erro. Tente novamente.");
+    }
     // Apenas em desenvolvimento, loga detalhes no console
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console

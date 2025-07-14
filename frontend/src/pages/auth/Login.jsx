@@ -10,16 +10,6 @@ export default function Login() {
   const { form, emailValid, emailTouched, handleChange, handleBlur, handleSubmit, loading } = useLoginForm();
   const { showError } = useErrorHandler();
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await handleSubmit();
-      // toast.success("Login realizado com sucesso!");
-    } catch (error) {
-      showError(error);
-    }
-  };
-
   return (
     <div
       className="fixed inset-0 flex items-center justify-center"
@@ -44,7 +34,7 @@ export default function Login() {
           </h1>
           <p className="text-base text-muted-foreground">Acesse sua conta para continuar</p>
         </div>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
             label="E-mail"
             name="email"

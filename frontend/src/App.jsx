@@ -8,6 +8,12 @@ import { SidebarProvider } from "./hooks/sidebar-context";
 import Perfil from "./pages/perfil/Perfil";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import React from "react";
+import UsuariosList from "./pages/usuarios/UsuariosList";
+import UsuarioNovo from "./pages/usuarios/UsuarioNovo";
+import UsuarioEditar from "./pages/usuarios/UsuarioEditar";
+import UsuarioVisualizar from "./pages/usuarios/UsuarioVisualizar";
+import GruposList from "./pages/grupos/GruposList";
 import CustomSidebarMenu from "./components/ui/SidebarMenu";
 
 function AppRoutes() {
@@ -48,6 +54,47 @@ function AppRoutes() {
                 element={
                   <PrivateRoute>
                     <Perfil />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/usuarios"
+                element={
+                  <PrivateRoute>
+                    <UsuariosList />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/usuarios/novo"
+                element={
+                  <PrivateRoute>
+                    <UsuarioNovo />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/usuarios/:id/editar"
+                element={
+                  <PrivateRoute>
+                    <UsuarioEditar />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/usuarios/:id/visualizar"
+                element={
+                  <PrivateRoute>
+                    <UsuarioVisualizar />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/grupos"
+                element={
+                  <PrivateRoute>
+                    {/* Importação direta do componente */}
+                    <GruposList />
                   </PrivateRoute>
                 }
               />
