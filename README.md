@@ -20,7 +20,7 @@ Sistema completo para gerenciamento de usuários, controle de acesso e suporte a
 - Permissões granulares por módulo/ação
 - Grupos customizados
 - Verificação automática em endpoints
-- 8 permissões base implementadas
+- Permissões customizadas por módulo/ação (exclusão de usuários removida, exclusão de grupos restrita a admins)
 
 ### ✅ Funcionalidades Avançadas
 - Paginação customizada
@@ -45,7 +45,7 @@ GET    /api/v1/auth/usuarios/           # Lista com paginação + filtros
 POST   /api/v1/auth/usuarios/           # Criar usuário
 GET    /api/v1/auth/usuarios/{id}/      # Detalhes do usuário
 PATCH  /api/v1/auth/usuarios/{id}/      # Editar + alterar senha
-DELETE /api/v1/auth/usuarios/{id}/      # Excluir usuário
+DELETE /api/v1/auth/usuarios/{id}/      # Inativar usuário (soft delete)
 GET    /api/v1/auth/usuarios/{id}/grupos/ # Grupos do usuário
 ```
 
@@ -58,6 +58,7 @@ GET/POST   /api/v1/controle-acesso/grupos/{id}/usuarios/
 DELETE     /api/v1/controle-acesso/grupos/{id}/usuarios/{user_id}/
 GET/POST   /api/v1/controle-acesso/grupos/{id}/permissoes/
 DELETE     /api/v1/controle-acesso/grupos/{id}/permissoes/{perm_id}/
+DELETE     /api/v1/controle-acesso/grupos/{id}/   # Exclui grupo (apenas admins, se não houver usuários vinculados)
 ```
 
 ## 🛠️ Tecnologias Utilizadas

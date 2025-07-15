@@ -1,3 +1,5 @@
+# Ignorar configurações e workflows do GitHub
+.github/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
