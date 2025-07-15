@@ -1,11 +1,11 @@
 from django.apps import apps
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from apps.controle_acesso.models import PermissaoCustomizada
 from django.core.cache import cache
 import hashlib
-
 # Cache keys
 CACHE_KEY_USER_PERMISSIONS = 'user_permissions_{user_id}'
 CACHE_KEY_APP_PERMISSIONS = 'app_permissions'
@@ -18,22 +18,32 @@ def get_app_permissions():
     # Buscar configurações do controle de acesso
     controle_config = getattr(settings, 'CONTROLE_ACESSO', {})
     skip_apps = controle_config.get('SKIP_APPS', ['endpoints'])
-    acoes_default = controle_config.get('ACOES_DEFAULT', ['criar', 'visualizar', 'editar', 'excluir'])
+    acoes_default = controle_config.get('ACOES_DEFAULT', ['criar', 'visualizar', 'editar', 'inativar'])
     
     # Apps customizados (que estão em INSTALLED_APPS)
+    # Considerar apenas apps do projeto (apps.*)
     custom_apps = [app for app in settings.INSTALLED_APPS 
-                   if not app.startswith('django.') 
-                   and not app.startswith('rest_framework')]
+                   if app.startswith('apps.')]
     
     for app_name in custom_apps:
         if app_name in skip_apps:
             continue
-            
+
         try:
             app_config = apps.get_app_config(app_name)
             display_name = getattr(app_config, 'verbose_name', app_name.replace('_', ' ').title())
-            
-            for acao in acoes_default:
+
+            # Lógica customizada para accounts e controle_acesso
+            if app_name == 'apps.accounts':
+                acoes = ['criar', 'visualizar', 'editar', 'inativar']
+            elif app_name == 'apps.controle_acesso':
+                acoes = ['criar', 'visualizar', 'editar', 'inativar']  # Exclusão só para admins, sem permissão customizada
+            else:
+                acoes = acoes_default
+
+            for acao in acoes:
+                if acao == 'gerenciar':
+                    continue  # Nunca gerar permissão 'gerenciar' automaticamente
                 permissions.append({
                     'modulo': app_name,
                     'modulo_display': display_name,
@@ -43,7 +53,9 @@ def get_app_permissions():
         except Exception as e:
             # Se app não existe, skip
             continue
-    
+
+    # Garantir que nenhuma permissão 'gerenciar' seja retornada, mesmo se vier de outra fonte
+    permissions = [p for p in permissions if p.get('acao') != 'gerenciar']
     return permissions
 
 def sync_permissions():
@@ -132,7 +144,7 @@ def check_permission(user, permission_name):
             codename=permission_name
         ).first()
         
-        if not django_perm:
+        if user.user_permissions.filter(pk=django_perm.pk).exists():
             return False
         
         # ✅ VERIFICAR: Permissão direta do usuário

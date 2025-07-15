@@ -15,6 +15,7 @@ import UsuarioEditar from "./pages/usuarios/UsuarioEditar";
 import UsuarioVisualizar from "./pages/usuarios/UsuarioVisualizar";
 import GruposList from "./pages/grupos/GruposList";
 import GrupoNovo from "./pages/grupos/GrupoNovo";
+import GrupoVisualizar from "./pages/grupos/GrupoVisualizar";
 import CustomSidebarMenu from "./components/ui/SidebarMenu";
 
 function AppRoutes() {
@@ -103,6 +104,14 @@ function AppRoutes() {
                 element={
                   <PrivateRoute>
                     <GrupoNovo />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/grupos/:id/visualizar"
+                element={
+                  <PrivateRoute>
+                    <GrupoVisualizar />
                   </PrivateRoute>
                 }
               />

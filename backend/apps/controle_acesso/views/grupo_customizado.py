@@ -70,6 +70,20 @@ from ..permissions import HasCustomPermission
     ),
 )
 class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
+    def destroy(self, request, *args, **kwargs):
+        grupo = self.get_object()
+        user = request.user
+        # Exclusão definitiva só para superuser ou admin
+        if not user.is_superuser:
+            # Verifica se está em grupo admin
+            admin_groups = user.groups.filter(name__icontains='admin')
+            if not admin_groups.exists():
+                return Response({'detail': 'Apenas administradores podem excluir grupos.'}, status=status.HTTP_403_FORBIDDEN)
+        # Só permite exclusão se não houver usuários vinculados
+        if grupo.total_usuarios > 0:
+            return Response({'detail': 'Não é possível excluir grupos com usuários vinculados.'}, status=status.HTTP_400_BAD_REQUEST)
+        grupo.delete()
+        return Response({'detail': 'Grupo excluído com sucesso.'}, status=status.HTTP_204_NO_CONTENT)
     """ViewSet para gerenciar grupos customizados"""
     queryset = GrupoCustomizado.objects.all()
     serializer_class = GrupoCustomizadoSerializer
@@ -94,30 +108,55 @@ class GrupoCustomizadoViewSet(viewsets.ModelViewSet):
         grupo = self.get_object()
         permission_id = request.data.get('permission_id')
         try:
-            permission = Permission.objects.get(id=permission_id)
-            grupo.group.permissions.add(permission)
+            # Sincroniza customizada e Django
+            from apps.controle_acesso.models import PermissaoCustomizada
+            perm_custom = PermissaoCustomizada.objects.filter(id=permission_id).first()
+            if not perm_custom:
+                return Response({
+                    'status': 'error',
+                    'message': 'Permissão customizada não encontrada'
+                }, status=status.HTTP_404_NOT_FOUND)
+            perm_django = Permission.objects.filter(codename=perm_custom.nome).first()
+            if not perm_django:
+                return Response({
+                    'status': 'error',
+                    'message': 'Permissão Django não encontrada'
+                }, status=status.HTTP_404_NOT_FOUND)
+            grupo.group.permissions.add(perm_django)
             return Response({
                 'status': 'success',
-                'message': f'Permissão {permission.name} adicionada ao grupo {grupo.group.name}'
+                'message': f'Permissão {perm_custom.nome} adicionada ao grupo {grupo.group.name}'
             })
-        except Permission.DoesNotExist:
+        except Exception as e:
             return Response({
                 'status': 'error',
-                'message': 'Permissão não encontrada'
-            }, status=status.HTTP_404_NOT_FOUND)
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
     @action(detail=True, methods=['delete'])
     def remove_permission(self, request, pk=None):
         grupo = self.get_object()
         permission_id = request.data.get('permission_id')
         try:
-            permission = Permission.objects.get(id=permission_id)
-            grupo.group.permissions.remove(permission)
+            from apps.controle_acesso.models import PermissaoCustomizada
+            perm_custom = PermissaoCustomizada.objects.filter(id=permission_id).first()
+            if not perm_custom:
+                return Response({
+                    'status': 'error',
+                    'message': 'Permissão customizada não encontrada'
+                }, status=status.HTTP_404_NOT_FOUND)
+            perm_django = Permission.objects.filter(codename=perm_custom.nome).first()
+            if not perm_django:
+                return Response({
+                    'status': 'error',
+                    'message': 'Permissão Django não encontrada'
+                }, status=status.HTTP_404_NOT_FOUND)
+            grupo.group.permissions.remove(perm_django)
             return Response({
                 'status': 'success',
-                'message': f'Permissão {permission.name} removida do grupo {grupo.group.name}'
+                'message': f'Permissão {perm_custom.nome} removida do grupo {grupo.group.name}'
             })
-        except Permission.DoesNotExist:
+        except Exception as e:
             return Response({
                 'status': 'error',
-                'message': 'Permissão não encontrada'
-            }, status=status.HTTP_404_NOT_FOUND)
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)

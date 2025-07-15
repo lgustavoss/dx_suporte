@@ -281,8 +281,7 @@ CONTROLE_ACESSO = {
         'criar',
         'visualizar', 
         'editar',
-        'excluir',
-        'gerenciar'
+        'inativar'
     ],
     
     # Sincronizar permissões automaticamente após migrations (produção = False)
