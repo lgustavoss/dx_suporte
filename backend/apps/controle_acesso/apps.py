@@ -3,7 +3,8 @@ from django.db.models.signals import post_migrate
 
 class ControleAcessoConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'controle_acesso'
+    name = 'apps.controle_acesso'
+    label = 'controle_acesso'
     verbose_name = 'Controle de Acesso'
     
     def ready(self):

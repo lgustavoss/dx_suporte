@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 
 Usuario = get_user_model()
 
@@ -18,8 +18,8 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from accounts.models import Usuario
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.accounts.models import Usuario
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 
 
 class TestControleAcessoViews(TestCase):

@@ -2,7 +2,7 @@ import pytest
 from django.test import TestCase
 from django.contrib.auth.models import Group
 from rest_framework import serializers
-from accounts.models import Usuario
+from apps.accounts.models import Usuario
 from accounts.validators import ValidacaoCompleta, ValidacaoSeguranca
 
 

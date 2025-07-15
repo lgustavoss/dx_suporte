@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
-from controle_acesso.models import PermissaoCustomizada
+from apps.controle_acesso.models import PermissaoCustomizada
 from controle_acesso.utils import get_app_permissions
 import logging
 from django.db import transaction
@@ -105,7 +105,7 @@ class Command(BaseCommand):
     def _get_content_type_for_module(self, module_name):
         """Determinar content_type baseado no módulo"""
         if module_name == 'accounts':
-            from accounts.models import Usuario
+            from apps.accounts.models import Usuario
             return ContentType.objects.get_for_model(Usuario)
         elif module_name == 'controle_acesso':
             return ContentType.objects.get_for_model(PermissaoCustomizada)

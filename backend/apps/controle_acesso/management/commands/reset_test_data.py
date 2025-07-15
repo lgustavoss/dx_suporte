@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 from django.contrib.auth.models import Group
-from accounts.models import Usuario
+from apps.accounts.models import Usuario
 
 class Command(BaseCommand):
     help = 'Resetar dados de teste e sincronizar permissões'

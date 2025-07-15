@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from rest_framework.test import APIRequestFactory
 from rest_framework.exceptions import ValidationError
 
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 from controle_acesso.serializers import (
     PermissaoCustomizadaSerializer,
     GrupoCustomizadoSerializer

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group, Permission
-from .models import GrupoCustomizado, PermissaoCustomizada
-from accounts.models import Usuario
+from apps.controle_acesso.models import GrupoCustomizado, PermissaoCustomizada
+from apps.accounts.models import Usuario
 
 class PermissaoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,20 +11,55 @@ class PermissaoSerializer(serializers.ModelSerializer):
 class PermissaoCustomizadaSerializer(serializers.ModelSerializer):
     modulo_display = serializers.SerializerMethodField()
     acao_display = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
     
     class Meta:
         model = PermissaoCustomizada
         fields = [
             'id', 'modulo', 'modulo_display', 'acao', 'acao_display',
             'nome', 'descricao', 'auto_descoberta', 'ativo', 
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'label'
         ]
     
     def get_modulo_display(self, obj):
         return obj.modulo.replace('_', ' ').title()
-    
+
     def get_acao_display(self, obj):
         return obj.acao.title()
+
+    def get_label(self, obj):
+        # Mapeamento por modulo/acao para nomes amigáveis
+        map = {
+            ('accounts', 'criar'): 'Criar usuário',
+            ('accounts', 'excluir'): 'Excluir usuário',
+            ('accounts', 'editar'): 'Editar usuário',
+            ('accounts', 'visualizar'): 'Visualizar usuário',
+            ('accounts', 'gerenciar'): 'Gerenciar usuários',
+            ('controle_acesso', 'criar'): 'Criar grupo',
+            ('controle_acesso', 'excluir'): 'Excluir grupo',
+            ('controle_acesso', 'editar'): 'Editar grupo',
+            ('controle_acesso', 'visualizar'): 'Visualizar grupo',
+            ('controle_acesso', 'gerenciar'): 'Gerenciar grupos',
+        }
+        key = (obj.modulo, obj.acao)
+        if key in map:
+            return map[key]
+        # Se houver descrição, retorna
+        if obj.descricao:
+            return obj.descricao
+        # Gera label genérica
+        acao_map = {
+            'criar': 'Criar',
+            'excluir': 'Excluir',
+            'editar': 'Editar',
+            'visualizar': 'Visualizar',
+            'gerenciar': 'Gerenciar',
+        }
+        modulo_map = {
+            'accounts': 'usuário',
+            'controle_acesso': 'grupo',
+        }
+        return f"{acao_map.get(obj.acao, obj.acao.title())} {modulo_map.get(obj.modulo, obj.modulo.replace('_', ' '))}"  
 
 class GroupSerializer(serializers.ModelSerializer):
     """Serializer para Django Group"""
@@ -36,13 +71,19 @@ class GrupoCustomizadoSerializer(serializers.ModelSerializer):
     """Serializer para grupos customizados"""
     
     # ✅ USAR DOIS CAMPOS DIFERENTES: um para leitura, outro para escrita
-    group = GroupSerializer(read_only=True)  # Para saída
-    group_data = GroupSerializer(write_only=True, required=False)  # Para entrada
-    
+    group = GroupSerializer(read_only=True)
+    nome = serializers.CharField(source='group.name', read_only=True)
+    total_usuarios = serializers.IntegerField(read_only=True)
+    total_permissoes = serializers.IntegerField(read_only=True)
+    group_data = GroupSerializer(write_only=True, required=False)
+
     class Meta:
         model = GrupoCustomizado
-        fields = ['id', 'group', 'group_data', 'descricao', 'ativo', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = [
+            'id', 'nome', 'group', 'group_data', 'descricao', 'ativo',
+            'total_usuarios', 'total_permissoes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'nome', 'total_usuarios', 'total_permissoes']
     
     def create(self, validated_data):
         """Criar grupo customizado com grupo Django aninhado"""

@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 
 Usuario = get_user_model()
 

@@ -20,7 +20,7 @@ from .serializers import (
     UsuarioCreateSerializer,
     CustomTokenObtainPairSerializer
 )
-from controle_acesso.models import GrupoCustomizado
+from apps.controle_acesso.models import GrupoCustomizado
 from controle_acesso.serializers import GrupoSimplificadoSerializer
 from controle_acesso.permissions import RequirePermission, HasCustomPermission
 from core.filters import GlobalSearchFilter, UsuarioFilter

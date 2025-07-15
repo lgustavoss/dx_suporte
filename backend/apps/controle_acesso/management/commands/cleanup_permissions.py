@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Permission
-from controle_acesso.models import PermissaoCustomizada
+from apps.controle_acesso.models import PermissaoCustomizada
 from collections import defaultdict
 
 class Command(BaseCommand):

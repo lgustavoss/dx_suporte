@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from unittest.mock import Mock
 
 from controle_acesso.permissions import HasCustomPermission
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 from controle_acesso.utils import check_permission
 
 Usuario = get_user_model()
@@ -232,7 +232,7 @@ class TestCheckPermissionFunction(TestCase):
         """Teste: check_permission retorna True com permissão válida"""
         
         # ✅ CORREÇÃO 1: Criar PermissaoCustomizada correspondente
-        from controle_acesso.models import PermissaoCustomizada
+        from apps.controle_acesso.models import PermissaoCustomizada
         
         # Criar permissão customizada que corresponde à Django
         perm_custom = PermissaoCustomizada.objects.create(

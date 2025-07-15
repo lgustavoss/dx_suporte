@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth.models import Group
 from rest_framework.test import APIRequestFactory
-from accounts.models import Usuario
+from apps.accounts.models import Usuario
 from accounts.serializers import (
     UsuarioBasicoSerializer,
     UsuarioDetalhadoSerializer,

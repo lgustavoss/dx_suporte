@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from controle_acesso.models import PermissaoCustomizada
+from apps.controle_acesso.models import PermissaoCustomizada
 
 class Command(BaseCommand):
     help = 'Corrigir content_types das permissões Django'
@@ -12,7 +12,7 @@ class Command(BaseCommand):
         fixed_count = 0
         
         # ✅ CORREÇÃO: Importar modelos e usar classes
-        from accounts.models import Usuario
+        from apps.accounts.models import Usuario
         
         # Mapear módulos para content_types corretos
         content_type_map = {

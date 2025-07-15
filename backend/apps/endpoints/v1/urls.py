@@ -2,7 +2,7 @@ from django.urls import path, include
 
 urlpatterns = [
     # Autenticação
-    path('auth/', include('accounts.urls')),
+path('auth/', include('apps.accounts.urls')),
 
     # Controle de acesso
     path('controle-acesso/', include('controle_acesso.urls')),

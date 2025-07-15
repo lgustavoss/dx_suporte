@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Permission, Group
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
-from accounts.models import Usuario
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.accounts.models import Usuario
 
 class Command(BaseCommand):
     help = 'Gerar relatório detalhado do sistema de permissões'

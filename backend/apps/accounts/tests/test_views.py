@@ -3,8 +3,8 @@ from django.urls import reverse
 from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 from rest_framework import status
-from accounts.models import Usuario
-from controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
+from apps.accounts.models import Usuario
+from apps.controle_acesso.models import PermissaoCustomizada, GrupoCustomizado
 
 
 class TestUsuarioViewSet(TestCase):
@@ -15,7 +15,7 @@ class TestUsuarioViewSet(TestCase):
         self.client = APIClient()
         
         # Limpar TODAS as permissões de accounts para evitar conflitos
-        from controle_acesso.models import PermissaoCustomizada
+        from apps.controle_acesso.models import PermissaoCustomizada
         PermissaoCustomizada.objects.filter(modulo='accounts').delete()
         
         # Agora criar novas sem conflito

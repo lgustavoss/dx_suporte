@@ -1,11 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views.grupo_detalhe import GrupoDetalheViewSet
 
 # Router para ViewSets
 router = DefaultRouter()
 router.register(r'permissoes', views.PermissaoCustomizadaViewSet, basename='permissoes')
-router.register(r'grupos-customizados', views.GrupoCustomizadoViewSet, basename='grupos-customizados')
+router.register(r'grupos-detalhe', GrupoDetalheViewSet, basename='grupos-detalhe')
+router.register(r'grupos', views.GrupoCustomizadoViewSet, basename='grupos')
 
 urlpatterns = [
     # URL de Sincronização de Permissões

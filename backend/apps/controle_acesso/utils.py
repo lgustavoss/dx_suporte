@@ -2,7 +2,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from .models import PermissaoCustomizada
+from apps.controle_acesso.models import PermissaoCustomizada
 from django.core.cache import cache
 import hashlib
 

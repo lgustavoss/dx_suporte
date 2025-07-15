@@ -56,9 +56,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     # Nossos apps
-    'accounts',
-    'endpoints',
-    'controle_acesso',
+    'apps.accounts',
+    'apps.endpoints',
+    'apps.controle_acesso',
 ]
 
 MIDDLEWARE = [
