@@ -16,15 +16,32 @@ from django.contrib.auth.models import Permission
 class GrupoPermissoesView(APIView):
     permission_classes = [HasCustomPermission]
     def get(self, request, grupo_id):
+        from apps.controle_acesso.models import PermissaoCustomizada
+        from apps.controle_acesso.serializers import PermissaoCustomizadaSerializer
         try:
             grupo_custom = GrupoCustomizado.objects.get(id=grupo_id)
+            # Busca os objetos Permission do grupo
             permissions = grupo_custom.group.permissions.all()
-            permissions_data = [{
-                'id': perm.id,
-                'codename': perm.codename,
-                'name': perm.name,
-                'content_type': perm.content_type.model
-            } for perm in permissions]
+            acao_modulo_list = []
+            for perm in permissions:
+                codename = perm.codename
+                if '_' in codename:
+                    modulo, acao = codename.split('_', 1)
+                    acao_modulo_list.append((acao, modulo))
+            # LOG TEMPORÁRIO PARA DEBUG
+            print('Codenames do grupo:', [perm.codename for perm in permissions])
+            print('Pares acao/modulo extraídos:', acao_modulo_list)
+            from apps.controle_acesso.models import PermissaoCustomizada
+            for acao, modulo in acao_modulo_list:
+                count = PermissaoCustomizada.objects.filter(acao=acao, modulo=modulo).count()
+                print(f"PermissaoCustomizada(acao='{acao}', modulo='{modulo}') -> {count} encontrada(s)")
+            # Busca as permissões customizadas correspondentes
+            from django.db.models import Q
+            q = Q()
+            for acao, modulo in acao_modulo_list:
+                q |= Q(acao=acao, modulo=modulo)
+            permissoes_custom = PermissaoCustomizada.objects.filter(q) if acao_modulo_list else PermissaoCustomizada.objects.none()
+            permissions_data = PermissaoCustomizadaSerializer(permissoes_custom, many=True).data
             return Response({
                 'grupo': grupo_custom.group.name,
                 'permissions': permissions_data

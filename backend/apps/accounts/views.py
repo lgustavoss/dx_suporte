@@ -147,8 +147,8 @@ def status_online(request):
         tags=['Usuários'],
     ),
     destroy=extend_schema(
-        summary="Excluir usuário",
-        description="Remove usuário do sistema",
+        summary="Inativar usuário",
+        description="Inativa (soft delete) o usuário, sem excluir do banco de dados. O usuário deixa de ter acesso ao sistema, mas seus dados permanecem para histórico/auditoria.",
         tags=['Usuários'],  
     ),
 )
@@ -208,10 +208,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         return queryset
     
     def destroy(self, request, *args, **kwargs):
-        """Exclusão com validações de segurança"""
+        """Inativa o usuário (soft delete), nunca exclui do banco de dados."""
         instance = self.get_object()
-        
-        # ✅ APLICAR VALIDAÇÕES DE EXCLUSÃO
+        # ✅ APLICAR VALIDAÇÕES DE INATIVAÇÃO
         try:
             ValidacaoCompleta.validar_exclusao_usuario(request.user, instance)
         except serializers.ValidationError as e:
@@ -219,12 +218,11 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 e.detail, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Se passou nas validações, executar exclusão
+        # Se passou nas validações, executar inativação
         self.perform_destroy(instance)
         return Response(
-            {"detail": "✅ Usuário excluído com sucesso."}, 
-            status=status.HTTP_204_NO_CONTENT
+            {"detail": "✅ Usuário inativado com sucesso. O registro permanece para histórico/auditoria."}, 
+            status=status.HTTP_200_OK
         )
     
     def perform_destroy(self, instance):

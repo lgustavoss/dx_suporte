@@ -3,7 +3,7 @@ import PageContainer from "../../components/ui/PageContainer";
 import { Button } from "../../components/ui/Button";
 import { FiEye, FiEdit2, FiTrash2 } from "react-icons/fi";
 import GrupoForm from "./GrupoForm";
-import { createGrupo } from "../../services/groupService";
+import { createGrupo, updateGrupo } from "../../services/groupService";
 import { useGrupos } from "../../hooks/useGrupos";
 import { useErrorHandler } from "../../hooks/useErrorHandler";
 import { useNavigate } from "react-router-dom";
@@ -34,6 +34,15 @@ export default function GruposList() {
       showError(err);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleInativar(id) {
+    try {
+      await updateGrupo(id, { ativo: false });
+      fetchGrupos();
+    } catch (err) {
+      showError(err);
     }
   }
 
@@ -87,8 +96,8 @@ export default function GruposList() {
                   <Button size="sm" variant="outline" title="Editar" onClick={() => navigate(`/grupos/${g.id}/editar`)}>
                     <FiEdit2 size={18} className="text-gray-400 hover:text-blue-500 transition-colors" />
                   </Button>
-                  <Button size="sm" variant="outline" title="Excluir" onClick={() => handleExcluir(g.id)}>
-                    <FiTrash2 size={18} className="text-gray-400 hover:text-red-500 transition-colors" />
+                  <Button size="sm" variant="outline" title="Inativar" onClick={() => handleInativar(g.id)}>
+                    <FiTrash2 size={18} className="text-gray-400 hover:text-yellow-500 transition-colors" />
                   </Button>
                 </td>
               </tr>

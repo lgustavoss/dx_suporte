@@ -22,6 +22,10 @@ class PermissaoCustomizadaSerializer(serializers.ModelSerializer):
         ]
     
     def get_modulo_display(self, obj):
+        if obj.modulo == 'accounts':
+            return 'Usuários'
+        if obj.modulo == 'controle_acesso':
+            return 'Controle de Acesso'
         return obj.modulo.replace('_', ' ').title()
 
     def get_acao_display(self, obj):
@@ -30,16 +34,16 @@ class PermissaoCustomizadaSerializer(serializers.ModelSerializer):
     def get_label(self, obj):
         # Mapeamento por modulo/acao para nomes amigáveis
         map = {
-            ('accounts', 'criar'): 'Criar usuário',
-            ('accounts', 'excluir'): 'Excluir usuário',
-            ('accounts', 'editar'): 'Editar usuário',
-            ('accounts', 'visualizar'): 'Visualizar usuário',
-            ('accounts', 'gerenciar'): 'Gerenciar usuários',
-            ('controle_acesso', 'criar'): 'Criar grupo',
-            ('controle_acesso', 'excluir'): 'Excluir grupo',
-            ('controle_acesso', 'editar'): 'Editar grupo',
-            ('controle_acesso', 'visualizar'): 'Visualizar grupo',
-            ('controle_acesso', 'gerenciar'): 'Gerenciar grupos',
+            ('accounts', 'criar'): 'Permite criar usuário.',
+            ('accounts', 'inativar'): 'Permite inativar usuário.',
+            ('accounts', 'editar'): 'Permite editar usuário.',
+            ('accounts', 'visualizar'): 'Permite visualizar usuário.',
+            ('accounts', 'gerenciar'): 'Permite gerenciar usuários.',
+            ('controle_acesso', 'criar'): 'Permite criar grupo.',
+            ('controle_acesso', 'inativar'): 'Permite inativar grupo.',
+            ('controle_acesso', 'editar'): 'Permite editar grupo.',
+            ('controle_acesso', 'visualizar'): 'Permite visualizar grupo.',
+            ('controle_acesso', 'gerenciar'): 'Permite gerenciar grupos.',
         }
         key = (obj.modulo, obj.acao)
         if key in map:
@@ -49,17 +53,17 @@ class PermissaoCustomizadaSerializer(serializers.ModelSerializer):
             return obj.descricao
         # Gera label genérica
         acao_map = {
-            'criar': 'Criar',
-            'excluir': 'Excluir',
-            'editar': 'Editar',
-            'visualizar': 'Visualizar',
-            'gerenciar': 'Gerenciar',
+            'criar': 'Permite criar',
+            'inativar': 'Permite inativar',
+            'editar': 'Permite editar',
+            'visualizar': 'Permite visualizar',
+            'gerenciar': 'Permite gerenciar',
         }
         modulo_map = {
             'accounts': 'usuário',
             'controle_acesso': 'grupo',
         }
-        return f"{acao_map.get(obj.acao, obj.acao.title())} {modulo_map.get(obj.modulo, obj.modulo.replace('_', ' '))}"  
+        return f"{acao_map.get(obj.acao, 'Permissão')} {modulo_map.get(obj.modulo, obj.modulo.replace('_', ' '))}."
 
 class GroupSerializer(serializers.ModelSerializer):
     """Serializer para Django Group"""
@@ -77,70 +81,86 @@ class GrupoCustomizadoSerializer(serializers.ModelSerializer):
     total_permissoes = serializers.IntegerField(read_only=True)
     group_data = GroupSerializer(write_only=True, required=False)
 
+    permissoes = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+
     class Meta:
         model = GrupoCustomizado
         fields = [
             'id', 'nome', 'group', 'group_data', 'descricao', 'ativo',
-            'total_usuarios', 'total_permissoes', 'created_at', 'updated_at'
+            'total_usuarios', 'total_permissoes', 'created_at', 'updated_at', 'permissoes'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'nome', 'total_usuarios', 'total_permissoes']
-    
+
     def create(self, validated_data):
-        """Criar grupo customizado com grupo Django aninhado"""
-        # ✅ EXTRAIR dados do grupo aninhado
+        """Criar grupo customizado com grupo Django aninhado e permissões customizadas"""
         group_data = validated_data.pop('group_data', None)
-        
+        permissoes_ids = validated_data.pop('permissoes', [])
+
         if not group_data:
             raise serializers.ValidationError({
                 'group_data': 'Este campo é obrigatório para criação.'
             })
-        
+
         group_name = group_data['name']
-        
-        # ✅ VERIFICAR se nome já existe
+
         if Group.objects.filter(name=group_name).exists():
             existing_group = Group.objects.get(name=group_name)
-            # Verificar se já tem GrupoCustomizado
             if hasattr(existing_group, 'custom_group'):
                 raise serializers.ValidationError({
                     'group_data': {'name': ['Já existe um grupo customizado para este nome.']}
                 })
-            # Se não tem, usar o grupo existente
             group_django = existing_group
         else:
-            # Criar novo grupo
             group_django = Group.objects.create(name=group_name)
-        
-        # ✅ CRIAR grupo customizado
+
         grupo_custom = GrupoCustomizado.objects.create(
             group=group_django,
             **validated_data
         )
-        
+
+        # Sincroniza permissões customizadas e Django
+        if permissoes_ids:
+            from apps.controle_acesso.models import PermissaoCustomizada
+            permissoes_custom = PermissaoCustomizada.objects.filter(id__in=permissoes_ids)
+            django_codenames = [p.nome for p in permissoes_custom if p.nome]
+            perms_django = Permission.objects.filter(codename__in=django_codenames)
+            group_django.permissions.add(*perms_django)
+
         return grupo_custom
     
     def update(self, instance, validated_data):
-        """Atualizar grupo customizado"""
-        # ✅ TRATAR atualização do grupo aninhado
+        """Atualizar grupo customizado e sincronizar permissões"""
         group_data = validated_data.pop('group_data', None)
-        
+        permissoes_ids = validated_data.pop('permissoes', None)
+
         if group_data:
             group_name = group_data.get('name')
             if group_name and group_name != instance.group.name:
-                # Verificar se novo nome já existe
                 if Group.objects.filter(name=group_name).exclude(id=instance.group.id).exists():
                     raise serializers.ValidationError({
                         'group_data': {'name': ['Já existe um grupo com este nome.']}
                     })
-                
                 instance.group.name = group_name
                 instance.group.save()
-        
-        # ✅ ATUALIZAR outros campos
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
         instance.save()
+
+        # Sincroniza permissões customizadas e Django
+        if permissoes_ids is not None:
+            from apps.controle_acesso.models import PermissaoCustomizada
+            permissoes_custom = PermissaoCustomizada.objects.filter(id__in=permissoes_ids)
+            django_codenames = [p.nome for p in permissoes_custom if p.nome]
+            perms_django = Permission.objects.filter(codename__in=django_codenames)
+            # Remove todas as permissões antes de adicionar as novas
+            instance.group.permissions.clear()
+            instance.group.permissions.add(*perms_django)
+
         return instance
     
     def to_representation(self, instance):

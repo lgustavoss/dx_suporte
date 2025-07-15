@@ -63,22 +63,12 @@ export default function GrupoNovo() {
     e.preventDefault();
     setLoading(true);
     try {
-      const grupo = await createGrupo({
+      await createGrupo({
         group_data: { name: form.nome },
         descricao: form.descricao,
         ativo: form.ativo,
+        permissoes: form.permissoes,
       });
-      // Adiciona permissões ao grupo
-      for (const permId of form.permissoes) {
-        await fetch(`/api/v1/controle-acesso/grupos/${grupo.id}/permissoes/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-          body: JSON.stringify({ permission_id: permId }),
-        });
-      }
       navigate("/grupos");
     } catch (err) {
       showError(err);
@@ -137,6 +127,7 @@ export default function GrupoNovo() {
                 let moduloLabel = modulo;
                 if (modulo.toLowerCase().includes("account")) moduloLabel = "Usuários";
                 if (modulo.toLowerCase().includes("controle")) moduloLabel = "Controle de Acesso";
+                // Filtra pelo termo de busca
                 const permsModulo = permsByModulo[modulo].filter((p) => {
                   const termo = search.toLowerCase();
                   return (
@@ -146,7 +137,6 @@ export default function GrupoNovo() {
                 });
                 if (permsModulo.length === 0) return null;
                 const allChecked = permsModulo.every((p) => form.permissoes.includes(p.id));
-                const someChecked = permsModulo.some((p) => form.permissoes.includes(p.id));
                 return (
                   <div key={modulo} className="mb-3 border-b last:border-b-0 pb-2">
                     <button
@@ -187,7 +177,13 @@ export default function GrupoNovo() {
                           <span className="font-medium text-sm">Selecionar todos</span>
                         </label>
                         <div className="flex flex-col gap-2">
-                          {permsModulo.map((p) => (
+                          {permsByModulo[modulo].filter((p) => {
+                            const termo = search.toLowerCase();
+                            return (
+                              (p.name || p.nome || "").toLowerCase().includes(termo) ||
+                              (p.codename || "").toLowerCase().includes(termo)
+                            );
+                          }).map((p) => (
                             <label key={p.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 transition cursor-pointer select-none border border-transparent">
                               <span className="switch">
                                 <input
@@ -203,9 +199,6 @@ export default function GrupoNovo() {
                                 <span className="font-medium text-base text-primary">
                                   {p.label}
                                 </span>
-                                {p.descricao && (
-                                  <span className="text-xs text-muted-foreground">{p.descricao}</span>
-                                )}
                                 <span className="text-xs text-muted-foreground font-mono mt-1">{p.codename}</span>
                               </div>
                             </label>

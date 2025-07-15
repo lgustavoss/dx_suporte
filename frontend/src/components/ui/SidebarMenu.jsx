@@ -5,7 +5,7 @@ import {
 } from "./Sidebar";
 
 import { useSidebar } from "../../hooks/sidebar-context";
-import { FiHome, FiUsers, FiLayers, FiSettings, FiChevronDown } from "react-icons/fi";
+import { FiHome, FiUsers, FiLayers, FiShield, FiChevronDown } from "react-icons/fi";
 import { useLocation, Link } from "react-router-dom";
 import React from "react";
 
@@ -31,8 +31,8 @@ export default function CustomSidebarMenu() {
       active: location.pathname === "/dashboard",
     },
     {
-      label: "Gestão",
-      icon: <FiSettings className="w-5 h-5" />,
+      label: "Controle de Acesso",
+      icon: <FiShield className="w-5 h-5" />,
       href: "#",
       active: location.pathname.startsWith("/usuarios") || location.pathname.startsWith("/grupos"),
       children: [

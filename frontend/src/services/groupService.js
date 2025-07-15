@@ -1,3 +1,14 @@
+export async function fetchPermissoesGrupo(grupoId) {
+  const token = localStorage.getItem("accessToken");
+  const res = await fetch(`${API_BASE_URL}controle-acesso/grupos/${grupoId}/permissoes/`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error("Erro ao buscar permissões do grupo");
+  return await res.json();
+}
 export async function fetchPermissoes() {
   const token = localStorage.getItem("accessToken");
   const res = await fetch(`${API_BASE_URL}controle-acesso/permissoes/`, {
@@ -9,6 +20,7 @@ export async function fetchPermissoes() {
   if (!res.ok) throw new Error("Erro ao buscar permissões");
   return await res.json();
 }
+
 import { API_BASE_URL } from "./api";
 
 export async function fetchGrupos() {
@@ -37,6 +49,7 @@ export async function createGrupo(data) {
   return await res.json();
 }
 
+// Função única para updateGrupo (PATCH)
 export async function updateGrupo(id, data) {
   const token = localStorage.getItem("accessToken");
   const res = await fetch(`${API_BASE_URL}controle-acesso/grupos/${id}/`, {
@@ -51,15 +64,3 @@ export async function updateGrupo(id, data) {
   return await res.json();
 }
 
-export async function deleteGrupo(id) {
-  const token = localStorage.getItem("accessToken");
-  const res = await fetch(`${API_BASE_URL}controle-acesso/grupos/${id}/`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) throw new Error("Erro ao excluir grupo");
-  return true;
-}
