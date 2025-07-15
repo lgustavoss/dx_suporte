@@ -1,5 +1,6 @@
 import React from "react";
 import Input from "../../components/form/Input";
+import PasswordInput from "../../components/form/PasswordInput";
 import { Button } from "../../components/ui/Button";
 import bgImg from "../../assets/fundo.png";
 import { useLoginForm } from "../../hooks/useLoginForm";
@@ -50,10 +51,9 @@ export default function Login() {
                 : "border-accent focus:border-secondary focus:ring-2 focus:ring-secondary/20"
             }`}
           />
-          <Input
+          <PasswordInput
             label="Senha"
             name="password"
-            type="password"
             value={form.password}
             onChange={handleChange}
             placeholder="Sua senha"
@@ -71,7 +71,7 @@ export default function Login() {
         <div className="text-center mt-2">
           <a
             href="#"
-            className="text-sm text-secondary hover:underline hover:text-primary transition"
+            className="text-sm text-primary font-semibold hover:underline transition"
           >
             Esqueceu a senha?
           </a>

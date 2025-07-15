@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function Input({
   label,
@@ -10,8 +11,10 @@ export default function Input({
   className = "",
   ...props
 }) {
+  const [show, setShow] = useState(false);
+  const isPassword = type === "password";
   return (
-    <div className="mb-4">
+    <div className="mb-6 relative">
       {label && (
         <label
           htmlFor={name}
@@ -23,11 +26,11 @@ export default function Input({
       <input
         id={name}
         name={name}
-        type={type}
+        type={isPassword && show ? "text" : type}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`w-full px-3 py-2 border border-accent rounded bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-secondary font-sans ${className}`}
+        className={`w-full px-3 ${className?.includes('h-12') ? 'text-base' : 'py-2'} border border-accent rounded bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-secondary font-sans ${className} ${isPassword ? 'pr-10' : ''}`}
         {...props}
       />
     </div>
