@@ -1,14 +1,8 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import Login from "./pages/auth/Login";
-import Dashboard from "./pages/dashboard/Dashboard";
-import PrivateRoute from "./routes/PrivateRoute";
-import Navbar from "./components/ui/Navbar";
-import { Sidebar } from "./components/ui/Sidebar";
-import { SidebarProvider } from "./hooks/sidebar-context";
-import Perfil from "./pages/perfil/Perfil";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import React from "react";
+import { BrowserRouter, useLocation, Routes, Route } from "react-router-dom";
+import { AppRoutes } from "./routes/AppRoutes";
+import Layout from "./layout/Layout";
+import "react-toastify/dist/ReactToastify.css";
 import UsuariosList from "./pages/usuarios/UsuariosList";
 import UsuarioNovo from "./pages/usuarios/UsuarioNovo";
 import UsuarioEditar from "./pages/usuarios/UsuarioEditar";
@@ -17,6 +11,14 @@ import GruposList from "./pages/grupos/GruposList";
 import GrupoNovo from "./pages/grupos/GrupoNovo";
 import GrupoVisualizar from "./pages/grupos/GrupoVisualizar";
 import CustomSidebarMenu from "./components/ui/SidebarMenu";
+import { SidebarProvider } from "./hooks/sidebar-context";
+import Navbar from "./components/ui/Navbar";
+import Sidebar from "./components/ui/Sidebar";
+import PrivateRoute from "./routes/PrivateRoute";
+import Dashboard from "./pages/dashboard/Dashboard";
+import Perfil from "./pages/perfil/Perfil";
+import Login from "./pages/auth/Login";
+import { ToastContainer } from "react-toastify";
 
 function AppRoutes() {
   const location = useLocation();
@@ -128,7 +130,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <Layout>
+        <AppRoutes />
+      </Layout>
     </BrowserRouter>
   );
 }
